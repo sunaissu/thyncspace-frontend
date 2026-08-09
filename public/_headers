@@ -1,0 +1,21 @@
+/*
+  ! Access-Control-Allow-Origin
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; connect-src 'self' https://thyncspace-api.bg-labs.com wss://thyncspace-api.bg-labs.com; font-src 'self' https://fonts.gstatic.com data:; form-action 'self'; frame-ancestors 'none'; img-src 'self' data: blob: https:; manifest-src 'self'; object-src 'none'; script-src 'self' 'unsafe-inline'; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self'; upgrade-insecure-requests
+  Permissions-Policy: camera=(), geolocation=(), microphone=(), payment=(), usb=()
+  Referrer-Policy: strict-origin-when-cross-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+  Service-Worker-Allowed: /
+
+/manifest.webmanifest
+  Cache-Control: public, max-age=3600
+
+/icons/*
+  Cache-Control: public, max-age=86400
+
+/theme-init.js
+  Cache-Control: no-cache, no-store, must-revalidate
