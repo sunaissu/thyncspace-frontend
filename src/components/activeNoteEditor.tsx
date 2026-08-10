@@ -169,6 +169,34 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       : initialWhiteboardRevision;
   const privateValue =
     note.type === NoteType.Document ? content : serializedWhiteboard;
+  const recoverPrivateDraft = useCallback(
+    (draftValue: string) => {
+      if (readOnly) return false;
+
+      if (note.type === NoteType.Document) {
+        documentBinding.onChange(draftValue);
+        return true;
+      }
+
+      try {
+        const parsed = JSON.parse(draftValue) as Partial<NoteboardSession>;
+        if (!Array.isArray(parsed.elements) || !parsed.viewport) return false;
+        const { panX, panY, zoom } = parsed.viewport;
+        if (
+          !Number.isFinite(panX) ||
+          !Number.isFinite(panY) ||
+          !Number.isFinite(zoom)
+        ) {
+          return false;
+        }
+        whiteboardBinding.onElementsChange(parsed.elements);
+        whiteboardBinding.onViewportChange({ panX, panY, zoom });
+        return true;
+      } catch {
+        return false;
+      }
+    }, [documentBinding, note.type, readOnly, whiteboardBinding],
+  );
   const handlePrivateSaved = useCallback(
     (savedNote: Note) => {
       setNotes((previous) =>
@@ -185,13 +213,15 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     enabled: collaboration.local && localBindingsReady && !readOnly,
     initialRevision: initialPrivateRevision,
     noteId: note._id,
+    onDraftRecovered: recoverPrivateDraft,
     onSaved: handlePrivateSaved,
     onStatusChange: onSaveStatusChange,
     revision: privateRevision,
     value: privateValue,
   });
   const editorReady =
-    collaboration.ready && (!collaboration.local || localBindingsReady);
+    collaboration.ready &&
+    (!collaboration.local || (localBindingsReady && privateAutosave.ready));
 
   useEffect(() => {
     if (!editorReady) return;
@@ -407,16 +437,41 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     <div className="editor-save-alert" role="alert">
       <CloudSlashIcon size={18} weight="bold" />
       <span>
-        <strong>Your latest changes are still on this screen.</strong>
+        <strong>
+          {privateAutosave.draftStored
+            ? "Your latest changes are saved in this browser."
+            : "Your latest changes are still on this screen."}
+        </strong>
         <small>{privateAutosave.error}</small>
       </span>
       <button type="button" className="btn-ghost" onClick={privateAutosave.retry}>
         Try saving again
       </button>
     </div>
+  ) : privateAutosave.draftNotice?.kind === "recovered" ? (
+    <div
+      className={`editor-save-alert is-draft-${privateAutosave.draftNotice.kind}`}
+      role="status"
+    >
+      <CloudSlashIcon size={18} weight="bold" />
+      <span>
+        <strong>Browser draft recovered.</strong>
+        <small>{privateAutosave.draftNotice.message}</small>
+      </span>
+      <div className="editor-save-alert-actions">
+        <button
+          type="button"
+          className="btn-ghost"
+          onClick={privateAutosave.dismissDraftNotice}
+        >
+          Got it
+        </button>
+      </div>
+    </div>
   ) : null;
 
-  if (!collaboration.ready) {
+  const privateDraftLoading = collaboration.local && !privateAutosave.ready;
+  if (!collaboration.ready || privateDraftLoading) {
     const hasError = collaboration.status === "error";
     return (
       <div
@@ -433,21 +488,65 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
             )}
           </div>
           <div className="collaboration-loading-copy">
-            <span className="eyebrow">Live workspace</span>
+            <span className="eyebrow">
+              {privateDraftLoading ? "Private workspace" : "Live workspace"}
+            </span>
             <strong>
-              {hasError ? "Live editing could not start" : "Joining this shared note..."}
+              {privateDraftLoading
+                ? "Checking this browser for unsaved changes..."
+                : hasError
+                  ? "Live editing could not start"
+                  : "Joining this shared note..."}
             </strong>
             <p>
-              {hasError
+              {privateDraftLoading
+                ? "This should only take a moment."
+                : hasError
                 ? collaboration.errorMessage
                 : "Connecting to the secure editing session. This usually takes a moment."}
             </p>
           </div>
-          {hasError && (
+          {hasError && !privateDraftLoading && (
             <button type="button" className="btn-primary" onClick={collaboration.retry}>
               Try again
             </button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  if (privateAutosave.draftNotice?.kind === "conflict") {
+    return (
+      <div className="collaboration-loading is-error" role="alert">
+        <div className="collaboration-loading-card">
+          <div className="collaboration-loading-icon" aria-hidden="true">
+            <CloudSlashIcon size={26} weight="bold" />
+          </div>
+          <div className="collaboration-loading-copy">
+            <span className="eyebrow">Private workspace</span>
+            <strong>Choose which version of this note to keep</strong>
+            <p>
+              {privateAutosave.draftNotice.message} Editing is paused until you
+              choose, so neither copy can overwrite the other.
+            </p>
+          </div>
+          <div className="editor-save-alert-actions">
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={privateAutosave.restoreConflictingDraft}
+            >
+              Restore browser draft
+            </button>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={privateAutosave.dismissDraftNotice}
+            >
+              Keep server version
+            </button>
+          </div>
         </div>
       </div>
     );
