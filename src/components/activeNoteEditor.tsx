@@ -34,7 +34,6 @@ import {
 } from "@sunaissu/calculator";
 import {
   MarkdownRenderer,
-  RichTextEditor,
   type RichTextBlockType,
   type RichTextEditorHandle,
 } from "@sunaissu/document-editor";
@@ -45,6 +44,7 @@ import NoteContext from "../context/noteContext";
 import { useNoteCollaboration } from "../hooks/useNoteCollaboration";
 import { usePrivateNoteAutosave } from "../hooks/usePrivateNoteAutosave";
 import LinkEditorDialog from "./linkEditorDialog";
+import RichTextEditor from "./richTextEditor";
 
 interface ActiveNoteEditorProps {
   collaborationEnabled?: boolean;
