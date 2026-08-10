@@ -5,7 +5,7 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import React, { FormEvent, useEffect, useRef, useState } from "react";
-import { Note } from "../model/note";
+import { Note, NoteType } from "../model/note";
 import * as NotesApi from "../util/fetch";
 
 interface ShareNoteDialogProps {
@@ -72,6 +72,15 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
     onCollaboratorsChange(next);
   };
 
+  const currentSnapshot = (): { text: string } => {
+    const text = note.type === NoteType.Document
+      ? note.content
+      : typeof note.content === "string"
+        ? note.content
+        : JSON.stringify(note.content);
+    return { text };
+  };
+
   const addCollaborator = async (event: FormEvent) => {
     event.preventDefault();
     if (!identifier.trim() || saving) return;
@@ -82,6 +91,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
         note._id,
         identifier.trim(),
         permission,
+        collaborators.length === 0 ? currentSnapshot() : undefined,
       );
       const next = [
         ...collaborators.filter((item) => item.userId !== collaborator.userId),

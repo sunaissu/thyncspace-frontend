@@ -257,13 +257,14 @@ export async function shareNote(
   noteId: string,
   identifier: string,
   permission: "viewer" | "editor",
+  snapshot?: { text: string },
 ): Promise<CollaboratorDetails> {
   const response = await fetchData(
     `${env.SERVER_URL}/api/notes/${noteId}/collaborators`,
     {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identifier, permission }),
+      body: JSON.stringify({ identifier, permission, snapshot }),
     },
   );
   return response.json();
