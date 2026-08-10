@@ -217,7 +217,15 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const handleUpdateTitle = async (noteId: string, title: string) => {
     try {
       setError("");
-      const updated = await NotesApi.updateNotes(noteId, { title });
+      const targetNote = notes.find((note) => note._id === noteId);
+      const isPrivateOwner = Boolean(
+        targetNote &&
+          targetNote.owner === loggedInUser?._id &&
+          targetNote.sharedWith.length === 0,
+      );
+      const updated = isPrivateOwner
+        ? await NotesApi.updatePrivateNote(noteId, { title })
+        : await NotesApi.updateNotes(noteId, { title });
       setNotes((currentNotes) =>
         currentNotes.map((note) =>
           note._id === noteId
@@ -295,6 +303,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
       ),
   );
   const canEdit = isOwner || isEditor;
+  const collaborationEnabled = !isOwner || Boolean(activeNote?.sharedWith.length);
 
   const filterOptions: Array<{ value: NoteFilter; label: string }> = [
     { value: "all", label: "All" },
@@ -572,7 +581,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                       </div>
                     ) : (
                       <ActiveNoteEditor
-                        key={activeNote._id}
+                        key={`${activeNote._id}:${collaborationEnabled ? "live" : "private"}`}
+                        collaborationEnabled={collaborationEnabled}
                         note={activeNote}
                         readOnly={!canEdit}
                         user={loggedInUser}

@@ -1,5 +1,5 @@
 import { HocuspocusProvider, WebSocketStatus } from "@hocuspocus/provider";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import * as Y from "yjs";
 import { User } from "../model/user";
 import * as NotesApi from "../util/fetch";
@@ -10,6 +10,7 @@ export type CollaborationStatus =
   | "connected"
   | "disconnected"
   | "error"
+  | "local"
   | "synced";
 
 export interface CollaborationPeer {
@@ -30,17 +31,49 @@ const collaborationUrl = () => {
   return `${base.replace(/^http/, "ws").replace(/\/$/, "")}/collaboration`;
 };
 
-export function useNoteCollaboration(noteId: string, user?: User | null) {
-  const document = useMemo(() => new Y.Doc({ guid: noteId }), [noteId]);
-  const [status, setStatus] = useState<CollaborationStatus>("connecting");
-  const [ready, setReady] = useState(false);
+export function useNoteCollaboration(
+  noteId: string,
+  user?: User | null,
+  enabled = true,
+) {
+  const document = useMemo(
+    () => new Y.Doc({ guid: enabled ? noteId : `${noteId}:private` }),
+    [enabled, noteId],
+  );
+  const [status, setStatus] = useState<CollaborationStatus>(
+    enabled ? "connecting" : "local",
+  );
+  const [ready, setReady] = useState(!enabled);
   const [peers, setPeers] = useState<CollaborationPeer[]>([]);
   const [unsyncedChanges, setUnsyncedChanges] = useState(0);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [connectionAttempt, setConnectionAttempt] = useState(0);
+
+  const retry = useCallback(() => {
+    setConnectionAttempt((attempt) => attempt + 1);
+  }, []);
 
   useEffect(() => {
+    if (!enabled) {
+      setReady(true);
+      setStatus("local");
+      setPeers([]);
+      setUnsyncedChanges(0);
+      setErrorMessage("");
+      return;
+    }
+
     let synchronized = false;
+    let failed = false;
+    setReady(false);
+    setStatus("connecting");
+    setErrorMessage("");
     const connectionTimeout = window.setTimeout(() => {
-      if (!synchronized) setStatus("error");
+      if (!synchronized) {
+        failed = true;
+        setStatus("error");
+        setErrorMessage("The live editing service did not respond in time.");
+      }
     }, 15_000);
     const provider = new HocuspocusProvider({
       url: collaborationUrl(),
@@ -49,6 +82,7 @@ export function useNoteCollaboration(noteId: string, user?: User | null) {
       token: () => NotesApi.getCollaborationToken(noteId),
       flushDelay: 80,
       onStatus: ({ status: websocketStatus }) => {
+        if (failed) return;
         if (websocketStatus === WebSocketStatus.Connected) setStatus("connected");
         else if (websocketStatus === WebSocketStatus.Connecting) setStatus("connecting");
         else setStatus("disconnected");
@@ -56,12 +90,23 @@ export function useNoteCollaboration(noteId: string, user?: User | null) {
       onSynced: ({ state }) => {
         if (state) {
           synchronized = true;
+          failed = false;
           window.clearTimeout(connectionTimeout);
           setReady(true);
           setStatus("synced");
+          setErrorMessage("");
         }
       },
-      onAuthenticationFailed: () => setStatus("error"),
+      onAuthenticationFailed: ({ reason }) => {
+        failed = true;
+        window.clearTimeout(connectionTimeout);
+        setStatus("error");
+        setErrorMessage(
+          reason === "permission-denied"
+            ? "Your access could not be verified. Refresh your sign-in and try again."
+            : reason || "Your access to this note could not be verified.",
+        );
+      },
       onUnsyncedChanges: ({ number }) => setUnsyncedChanges(number),
       onAwarenessChange: ({ states }) => {
         const next = new Map<string, CollaborationPeer>();
@@ -85,7 +130,16 @@ export function useNoteCollaboration(noteId: string, user?: User | null) {
       window.clearTimeout(connectionTimeout);
       provider.destroy();
     };
-  }, [document, noteId, user]);
+  }, [connectionAttempt, document, enabled, noteId, user]);
 
-  return { document, peers, ready, status, unsyncedChanges };
+  return {
+    document,
+    errorMessage,
+    local: !enabled,
+    peers,
+    ready,
+    retry,
+    status,
+    unsyncedChanges,
+  };
 }

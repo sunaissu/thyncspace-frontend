@@ -213,6 +213,21 @@ export async function updateNotes(id: string, note: NoteInput) {
   return response.json();
 }
 
+export async function updatePrivateNote(
+  id: string,
+  note: NoteInput,
+): Promise<Note> {
+  const response = await fetchData(
+    `${env.SERVER_URL}/api/notes/${id}/private`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(note),
+    },
+  );
+  return response.json();
+}
+
 export interface CollaboratorDetails {
   email: string;
   permission: "viewer" | "editor";
