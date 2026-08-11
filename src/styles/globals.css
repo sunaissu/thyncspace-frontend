@@ -1811,12 +1811,12 @@ textarea:focus-visible {
   background: #0d1014;
 }
 
-.markdown-body,
-.markdown-empty {
-  width: min(920px, 100%);
+.markdown-body.sunaissu-markdown-body,
+.markdown-empty.sunaissu-markdown-empty {
+  width: 100%;
   min-height: 100%;
-  margin: 0 auto;
-  padding: clamp(1.7rem, 4vw, 3.8rem) clamp(1.25rem, 5vw, 4.5rem);
+  margin: 0;
+  padding: clamp(1.4rem, 3.5vw, 3.2rem) clamp(1.25rem, 5vw, 4.5rem);
 }
 
 .mode-split .markdown-body,
@@ -4190,8 +4190,8 @@ html[data-theme="light"] .modal-backdrop {
 
   .rich-text-editor.sunaissu-rich-text-editor,
   .markdown-source,
-  .markdown-body,
-  .markdown-empty {
+  .markdown-body.sunaissu-markdown-body,
+  .markdown-empty.sunaissu-markdown-empty {
     padding: 1.25rem 1rem 2.5rem;
     font-size: 1rem;
     line-height: 1.72;
