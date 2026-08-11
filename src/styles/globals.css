@@ -3429,11 +3429,11 @@ html[data-theme="light"] {
   overflow-y: auto;
 }
 
-.rich-text-editor {
+.rich-text-editor.sunaissu-rich-text-editor {
   width: 100%;
   min-height: 100%;
   margin: 0;
-  padding: 0;
+  padding: clamp(1.4rem, 3.5vw, 3.2rem) clamp(1.25rem, 5vw, 4.5rem);
   outline: 0;
   color: #d8e0e9;
   caret-color: var(--color-accent-blue);
@@ -3441,9 +3441,9 @@ html[data-theme="light"] {
   line-height: 1.78;
 }
 
-.rich-text-editor:empty::before {
+.rich-text-editor.sunaissu-rich-text-editor:empty::before {
   content: attr(data-placeholder);
-  color: var(--color-text-faint);
+  color: #444c58;
   pointer-events: none;
 }
 
@@ -4188,6 +4188,7 @@ html[data-theme="light"] .modal-backdrop {
     flex: 0 0 88px;
   }
 
+  .rich-text-editor.sunaissu-rich-text-editor,
   .markdown-source,
   .markdown-body,
   .markdown-empty {
