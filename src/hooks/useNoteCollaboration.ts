@@ -83,9 +83,18 @@ export function useNoteCollaboration(
       flushDelay: 80,
       onStatus: ({ status: websocketStatus }) => {
         if (failed) return;
-        if (websocketStatus === WebSocketStatus.Connected) setStatus("connected");
-        else if (websocketStatus === WebSocketStatus.Connecting) setStatus("connecting");
-        else setStatus("disconnected");
+        if (websocketStatus === WebSocketStatus.Connected) {
+          setStatus("connected");
+        } else if (websocketStatus === WebSocketStatus.Connecting) {
+          setReady(false);
+          setStatus("connecting");
+        } else {
+          // Do not leave an apparently editable note on screen while updates
+          // are only queued in memory. Leaving during that state would destroy
+          // the provider and could discard those queued document/canvas edits.
+          setReady(false);
+          setStatus("disconnected");
+        }
       },
       onSynced: ({ state }) => {
         if (state) {

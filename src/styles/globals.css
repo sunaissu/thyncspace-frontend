@@ -1944,6 +1944,14 @@ textarea:focus-visible {
   padding-left: 1.35rem;
 }
 
+.markdown-body ul {
+  list-style: disc outside;
+}
+
+.markdown-body ol {
+  list-style: decimal outside;
+}
+
 .markdown-body li {
   margin: 0.3rem 0;
   padding-left: 0.15rem;
@@ -3507,8 +3515,20 @@ html[data-theme="light"] {
   padding-left: 1.55rem;
 }
 
+.rich-text-editor ul {
+  list-style: disc outside;
+}
+
+.rich-text-editor ol {
+  list-style: decimal outside;
+}
+
 .rich-text-editor li {
   margin: 0.25rem 0;
+}
+
+.rich-text-editor li[data-task] {
+  list-style: none;
 }
 
 .rich-text-editor a,

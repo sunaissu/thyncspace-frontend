@@ -233,11 +233,6 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             : note,
         ),
       );
-      window.dispatchEvent(
-        new CustomEvent("thyncspace:title-update", {
-          detail: { noteId, title: updated.title },
-        }),
-      );
     } catch (updateError) {
       setError(
         updateError instanceof Error

@@ -13,6 +13,7 @@ import {
   EyeIcon,
   LinkIcon,
   ListBulletsIcon,
+  ListNumbersIcon,
   PencilSimpleIcon,
   QuotesIcon,
   SpinnerBallIcon,
@@ -240,21 +241,6 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     synchronizeTitle();
     return () => titleText.unobserve(synchronizeTitle);
   }, [editorReady, note._id, setNotes, titleText]);
-
-  useEffect(() => {
-    const synchronizeLocalTitle = (event: Event) => {
-      if (readOnly || !editorReady) return;
-      const detail = (event as CustomEvent<{ noteId?: string; title?: string }>).detail;
-      if (detail?.noteId !== note._id || !detail.title) return;
-      collaboration.document.transact(() => {
-        if (titleText.length) titleText.delete(0, titleText.length);
-        titleText.insert(0, detail.title!);
-      }, "title-editor");
-    };
-    window.addEventListener("thyncspace:title-update", synchronizeLocalTitle);
-    return () =>
-      window.removeEventListener("thyncspace:title-update", synchronizeLocalTitle);
-  }, [collaboration.document, editorReady, note._id, readOnly, titleText]);
 
   const changeDocumentContent = useCallback(
     (newContent: string) => {
@@ -679,6 +665,12 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       icon: ListBulletsIcon,
       action: () =>
         applyVisualOrMarkdown("insertUnorderedList", () => prefixSelectedLines("- ")),
+    },
+    {
+      label: "Numbered list",
+      icon: ListNumbersIcon,
+      action: () =>
+        applyVisualOrMarkdown("insertOrderedList", () => prefixSelectedLines("1. ")),
     },
     {
       label: "Quote",

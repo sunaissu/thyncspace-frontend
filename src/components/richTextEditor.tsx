@@ -73,6 +73,38 @@ const restoreSelectionOffsets = (
   return range;
 };
 
+const applyMarkdownListShortcut = (root: HTMLElement) => {
+  const selection = window.getSelection();
+  if (!selection?.rangeCount) return false;
+  const range = selection.getRangeAt(0);
+  if (!range.collapsed || !root.contains(range.commonAncestorContainer)) {
+    return false;
+  }
+
+  const selectionElement =
+    range.commonAncestorContainer instanceof HTMLElement
+      ? range.commonAncestorContainer
+      : range.commonAncestorContainer.parentElement;
+  const closestBlock = selectionElement?.closest("p, div");
+  const block = closestBlock && root.contains(closestBlock) ? closestBlock : root;
+  const beforeCaret = range.cloneRange();
+  beforeCaret.selectNodeContents(block);
+  beforeCaret.setEnd(range.endContainer, range.endOffset);
+  const marker = beforeCaret.toString();
+  const command = /^[-*+]$/.test(marker)
+    ? "insertUnorderedList"
+    : /^\d+\.$/.test(marker)
+      ? "insertOrderedList"
+      : null;
+  if (!command) return false;
+
+  selection.removeAllRanges();
+  selection.addRange(beforeCaret);
+  document.execCommand("delete", false);
+  document.execCommand(command, false);
+  return true;
+};
+
 const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
   (
     {
@@ -257,6 +289,16 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           emitChange();
         }}
         onKeyDown={(event) => {
+          if (
+            event.key === " " &&
+            editorRef.current &&
+            applyMarkdownListShortcut(editorRef.current)
+          ) {
+            event.preventDefault();
+            rememberSelection();
+            emitChange();
+            return;
+          }
           if (event.key !== "Tab") return;
           event.preventDefault();
           document.execCommand("insertText", false, "  ");
