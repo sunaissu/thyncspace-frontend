@@ -14,6 +14,11 @@ import React, {
   useState,
 } from "react";
 
+interface ThyncspaceRichTextEditorProps extends RichTextEditorProps {
+  onRedo?: () => void;
+  onUndo?: () => void;
+}
+
 interface SelectionOffsets {
   end: number;
   start: number;
@@ -105,13 +110,18 @@ const applyMarkdownListShortcut = (root: HTMLElement) => {
   return true;
 };
 
-const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
+const RichTextEditor = forwardRef<
+  RichTextEditorHandle,
+  ThyncspaceRichTextEditorProps
+>(
   (
     {
       className = "",
       content,
       onBlockTypeChange,
       onChange,
+      onRedo,
+      onUndo,
       placeholder = "Start writing…",
       readOnly = false,
     },
@@ -289,6 +299,19 @@ const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(
           emitChange();
         }}
         onKeyDown={(event) => {
+          const modifier = event.metaKey || event.ctrlKey;
+          const key = event.key.toLowerCase();
+          if (modifier && !event.altKey && key === "z") {
+            event.preventDefault();
+            if (event.shiftKey) onRedo?.();
+            else onUndo?.();
+            return;
+          }
+          if (modifier && !event.altKey && key === "y") {
+            event.preventDefault();
+            onRedo?.();
+            return;
+          }
           if (
             event.key === " " &&
             editorRef.current &&

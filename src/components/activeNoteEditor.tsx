@@ -6,7 +6,10 @@ import React, {
   useRef,
   useState,
 } from "react";
+import * as Y from "yjs";
 import {
+  ArrowClockwiseIcon,
+  ArrowCounterClockwiseIcon,
   CalculatorIcon,
   CloudSlashIcon,
   CodeIcon,
@@ -38,7 +41,10 @@ import {
   type RichTextBlockType,
   type RichTextEditorHandle,
 } from "@sunaissu/document-editor";
-import { useYjsDocument } from "@sunaissu/document-editor/yjs";
+import {
+  YJS_DOCUMENT_TEXT_KEY,
+  useYjsDocument,
+} from "@sunaissu/document-editor/yjs";
 import { DocumentNote, Note, NoteType, WhiteboardNote } from "../model/note";
 import { User } from "../model/user";
 import NoteContext from "../context/noteContext";
@@ -62,6 +68,73 @@ const emptyWhiteboard = (): Pick<NoteboardSession, "elements" | "viewport"> => (
   elements: [],
   viewport: { panX: 0, panY: 0, zoom: 1 },
 });
+
+const useDocumentHistory = (document: Y.Doc, enabled: boolean) => {
+  const managerRef = useRef<Y.UndoManager | null>(null);
+  const [availability, setAvailability] = useState({
+    canRedo: false,
+    canUndo: false,
+  });
+
+  useEffect(() => {
+    if (!enabled) {
+      managerRef.current = null;
+      setAvailability({ canRedo: false, canUndo: false });
+      return;
+    }
+
+    const manager = new Y.UndoManager(
+      document.getText(YJS_DOCUMENT_TEXT_KEY),
+      {
+        // The editor binding uses a plain-object origin. Hocuspocus uses its
+        // provider instance, so collaborators' remote edits stay out of this
+        // user's local undo history.
+        trackedOrigins: new Set([Object]),
+      },
+    );
+    managerRef.current = manager;
+
+    const refreshAvailability = () => {
+      setAvailability({
+        canRedo: manager.canRedo(),
+        canUndo: manager.canUndo(),
+      });
+    };
+
+    manager.on("stack-item-added", refreshAvailability);
+    manager.on("stack-item-popped", refreshAvailability);
+    manager.on("stack-item-updated", refreshAvailability);
+    manager.on("stack-cleared", refreshAvailability);
+    refreshAvailability();
+
+    return () => {
+      manager.off("stack-item-added", refreshAvailability);
+      manager.off("stack-item-popped", refreshAvailability);
+      manager.off("stack-item-updated", refreshAvailability);
+      manager.off("stack-cleared", refreshAvailability);
+      manager.destroy();
+      if (managerRef.current === manager) managerRef.current = null;
+    };
+  }, [document, enabled]);
+
+  const undo = useCallback(() => {
+    const manager = managerRef.current;
+    if (!manager?.canUndo()) return;
+    manager.stopCapturing();
+    manager.undo();
+    manager.stopCapturing();
+  }, []);
+
+  const redo = useCallback(() => {
+    const manager = managerRef.current;
+    if (!manager?.canRedo()) return;
+    manager.stopCapturing();
+    manager.redo();
+    manager.stopCapturing();
+  }, []);
+
+  return { ...availability, redo, undo };
+};
 
 const parseWhiteboard = (
   note: Note,
@@ -223,6 +296,10 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const editorReady =
     collaboration.ready &&
     (!collaboration.local || (localBindingsReady && privateAutosave.ready));
+  const documentHistory = useDocumentHistory(
+    collaboration.document,
+    editorReady && note.type === NoteType.Document && !readOnly,
+  );
 
   useEffect(() => {
     if (!editorReady) return;
@@ -699,6 +776,28 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       <div className="document-editor-area">
         <div className="document-toolbar">
           <div className="formatting-tools" aria-label="Text formatting">
+            {!readOnly && (
+              <>
+                <button
+                  type="button"
+                  onClick={documentHistory.undo}
+                  disabled={!documentHistory.canUndo}
+                  title="Undo (Ctrl+Z)"
+                  aria-label="Undo"
+                >
+                  <ArrowCounterClockwiseIcon size={17} weight="bold" />
+                </button>
+                <button
+                  type="button"
+                  onClick={documentHistory.redo}
+                  disabled={!documentHistory.canRedo}
+                  title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
+                  aria-label="Redo"
+                >
+                  <ArrowClockwiseIcon size={17} weight="bold" />
+                </button>
+              </>
+            )}
             {editorMode === "visual" && !readOnly && (
               <select
                 className="text-style-select"
@@ -769,6 +868,8 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
                 content={content}
                 onChange={changeDocumentContent}
                 onBlockTypeChange={setVisualBlockType}
+                onRedo={documentHistory.redo}
+                onUndo={documentHistory.undo}
                 placeholder="Start writing your note…"
               />
             </div>
@@ -782,6 +883,19 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
                 value={content}
                 onChange={(event) => changeDocumentContent(event.target.value)}
                 onKeyDown={(event) => {
+                  const modifier = event.metaKey || event.ctrlKey;
+                  const key = event.key.toLowerCase();
+                  if (modifier && !event.altKey && key === "z") {
+                    event.preventDefault();
+                    if (event.shiftKey) documentHistory.redo();
+                    else documentHistory.undo();
+                    return;
+                  }
+                  if (modifier && !event.altKey && key === "y") {
+                    event.preventDefault();
+                    documentHistory.redo();
+                    return;
+                  }
                   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
                     event.preventDefault();
                     insertMarkdown("**", "**", "bold text");
