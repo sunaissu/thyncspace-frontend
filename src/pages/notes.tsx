@@ -318,7 +318,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           />
         </Head>
 
-        <div className="notes-page">
+        <div className={activeNote ? "notes-page has-active-note" : "notes-page"}>
           <header className="workspace-topbar">
             <div className="workspace-title">
               <span className="eyebrow">Personal workspace</span>
