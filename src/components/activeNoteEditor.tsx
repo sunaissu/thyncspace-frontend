@@ -27,7 +27,6 @@ import {
 import {
   Noteboard,
   NoteboardRef,
-  type NoteboardSession,
   createTextElement,
 } from "@sunaissu/noteboard";
 import { useYjsNoteboard } from "@sunaissu/noteboard/yjs";
@@ -45,9 +44,18 @@ import {
   YJS_DOCUMENT_TEXT_KEY,
   useYjsDocument,
 } from "@sunaissu/document-editor/yjs";
-import { DocumentNote, Note, NoteType, WhiteboardNote } from "../model/note";
+import {
+  DocumentNote,
+  Note,
+  NoteType,
+  type WhiteboardContent,
+  WhiteboardNote,
+  sanitizeNoteboardElements,
+  sanitizeNoteboardViewport,
+} from "../model/note";
 import { User } from "../model/user";
 import NoteContext from "../context/noteContext";
+import { useTheme } from "../context/themeContext";
 import { useNoteCollaboration } from "../hooks/useNoteCollaboration";
 import { usePrivateNoteAutosave } from "../hooks/usePrivateNoteAutosave";
 import LinkEditorDialog from "./linkEditorDialog";
@@ -64,7 +72,7 @@ interface ActiveNoteEditorProps {
 type EditorMode = "visual" | "markdown" | "preview";
 const COLLABORATIVE_TITLE_KEY = "note-title";
 
-const emptyWhiteboard = (): Pick<NoteboardSession, "elements" | "viewport"> => ({
+const emptyWhiteboard = (): Pick<WhiteboardContent, "elements" | "viewport"> => ({
   elements: [],
   viewport: { panX: 0, panY: 0, zoom: 1 },
 });
@@ -138,7 +146,7 @@ const useDocumentHistory = (document: Y.Doc, enabled: boolean) => {
 
 const parseWhiteboard = (
   note: Note,
-): Pick<NoteboardSession, "elements" | "viewport"> => {
+): Pick<WhiteboardContent, "elements" | "viewport"> => {
   if (note.type !== NoteType.Whiteboard || !note.content) return emptyWhiteboard();
 
   let parsed: unknown = note.content;
@@ -151,15 +159,10 @@ const parseWhiteboard = (
   }
   if (typeof parsed !== "object" || parsed === null) return emptyWhiteboard();
 
-  const candidate = parsed as Partial<NoteboardSession>;
-  const viewport = candidate.viewport;
+  const candidate = parsed as Partial<WhiteboardContent>;
   return {
-    elements: Array.isArray(candidate.elements) ? candidate.elements : [],
-    viewport: {
-      panX: Number.isFinite(viewport?.panX) ? viewport!.panX : 0,
-      panY: Number.isFinite(viewport?.panY) ? viewport!.panY : 0,
-      zoom: Number.isFinite(viewport?.zoom) ? viewport!.zoom : 1,
-    },
+    elements: sanitizeNoteboardElements(candidate.elements),
+    viewport: sanitizeNoteboardViewport(candidate.viewport),
   };
 };
 
@@ -183,9 +186,13 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     initialValue: collaboration.local ? initialDocumentContent : undefined,
   });
   const whiteboardBinding = useYjsNoteboard(collaboration.document, {
-    initialElements: collaboration.local ? initialWhiteboard.elements : undefined,
     initialViewport: collaboration.local ? initialWhiteboard.viewport : undefined,
   });
+  const initializeWhiteboardElements = whiteboardBinding.onElementsChange;
+  const whiteboardElements = useMemo(
+    () => sanitizeNoteboardElements(whiteboardBinding.elements),
+    [whiteboardBinding.elements],
+  );
   const titleText = useMemo(
     () => collaboration.document.getText(COLLABORATIVE_TITLE_KEY),
     [collaboration.document],
@@ -200,22 +207,45 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const [linkInitialText, setLinkInitialText] = useState("");
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
   const { setNotes } = useContext(NoteContext);
+  const { preference, setPreference } = useTheme();
 
   const boardRef = useRef<NoteboardRef>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const richEditorRef = useRef<RichTextEditorHandle>(null);
+  const initializedLocalWhiteboardRef = useRef<Y.Doc | null>(null);
 
   useEffect(() => {
-    if (collaboration.local) setLocalBindingsReady(true);
-  }, [collaboration.document, collaboration.local]);
+    if (!collaboration.local) return;
+
+    if (initializedLocalWhiteboardRef.current !== collaboration.document) {
+      initializedLocalWhiteboardRef.current = collaboration.document;
+
+      // Noteboard 2.0's initialElements path reads detached Y.Map values.
+      // Updating through the binding attaches each map before it is read.
+      if (
+        note.type === NoteType.Whiteboard &&
+        initialWhiteboard.elements.length > 0
+      ) {
+        initializeWhiteboardElements(initialWhiteboard.elements);
+      }
+    }
+
+    setLocalBindingsReady(true);
+  }, [
+    collaboration.document,
+    collaboration.local,
+    initialWhiteboard.elements,
+    note.type,
+    initializeWhiteboardElements,
+  ]);
 
   const whiteboardRevision = useMemo(
     () =>
       JSON.stringify({
-        elements: whiteboardBinding.elements,
+        elements: whiteboardElements,
         viewport: whiteboardBinding.viewport,
       }),
-    [whiteboardBinding.elements, whiteboardBinding.viewport],
+    [whiteboardBinding.viewport, whiteboardElements],
   );
   const initialWhiteboardRevision = useMemo(
     () =>
@@ -229,11 +259,11 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     () =>
       JSON.stringify({
         version: 1,
-        elements: whiteboardBinding.elements,
+        elements: whiteboardElements,
         viewport: whiteboardBinding.viewport,
         savedAt: new Date().toISOString(),
       }),
-    [whiteboardBinding.elements, whiteboardBinding.viewport],
+    [whiteboardBinding.viewport, whiteboardElements],
   );
   const privateRevision =
     note.type === NoteType.Document ? content : whiteboardRevision;
@@ -253,7 +283,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       }
 
       try {
-        const parsed = JSON.parse(draftValue) as Partial<NoteboardSession>;
+        const parsed = JSON.parse(draftValue) as Partial<WhiteboardContent>;
         if (!Array.isArray(parsed.elements) || !parsed.viewport) return false;
         const { panX, panY, zoom } = parsed.viewport;
         if (
@@ -263,8 +293,12 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
         ) {
           return false;
         }
-        whiteboardBinding.onElementsChange(parsed.elements);
-        whiteboardBinding.onViewportChange({ panX, panY, zoom });
+        whiteboardBinding.onElementsChange(
+          sanitizeNoteboardElements(parsed.elements),
+        );
+        whiteboardBinding.onViewportChange(
+          sanitizeNoteboardViewport({ panX, panY, zoom }),
+        );
         return true;
       } catch {
         return false;
@@ -365,14 +399,14 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
 
   const handleWhiteboardChange = useCallback((elements: Parameters<typeof whiteboardBinding.onElementsChange>[0]) => {
     if (readOnly) return;
-    whiteboardBinding.onElementsChange(elements);
+    whiteboardBinding.onElementsChange(sanitizeNoteboardElements(elements));
   }, [readOnly, whiteboardBinding]);
 
   const handleViewportChange = useCallback(
     (viewport: Parameters<typeof whiteboardBinding.onViewportChange>[0]) => {
-      if (!readOnly) whiteboardBinding.onViewportChange(viewport);
+      whiteboardBinding.onViewportChange(viewport);
     },
-    [readOnly, whiteboardBinding],
+    [whiteboardBinding],
   );
 
   useEffect(() => {
@@ -396,7 +430,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
         ...current,
         content: {
           ...priorContent,
-          elements: whiteboardBinding.elements,
+          elements: whiteboardElements,
           viewport: whiteboardBinding.viewport,
         },
         updatedAt: new Date().toISOString(),
@@ -407,8 +441,8 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     note._id,
     note.type,
     setNotes,
-    whiteboardBinding.elements,
     whiteboardBinding.viewport,
+    whiteboardElements,
   ]);
 
   const insertMarkdown = useCallback(
@@ -645,11 +679,14 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
             <Noteboard
               key={note._id}
               ref={boardRef}
-              elements={whiteboardBinding.elements}
-              viewport={whiteboardBinding.viewport}
+              elements={whiteboardElements}
+              initialViewport={readOnly ? whiteboardBinding.viewport : undefined}
+              viewport={readOnly ? undefined : whiteboardBinding.viewport}
               onElementsChange={handleWhiteboardChange}
-              onViewportChange={handleViewportChange}
+              onViewportChange={readOnly ? undefined : handleViewportChange}
+              onThemeChange={setPreference}
               readOnly={readOnly}
+              theme={preference}
             />
           </div>
           {calculatorOpen && (

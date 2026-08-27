@@ -20,27 +20,44 @@ export const THEME_STORAGE_KEY = "thyncspace-theme";
 
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
-const getSystemTheme = (): ResolvedTheme =>
-  window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+const getSystemTheme = (): ResolvedTheme => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return "dark";
+  }
 
-export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
-  const [preference, setPreferenceState] = useState<ThemePreference>(() => {
-    if (typeof window === "undefined") return "system";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
+};
+
+const getStoredPreference = (): ThemePreference => {
+  if (typeof window === "undefined") return "system";
+
+  try {
     const storedPreference = window.localStorage.getItem(THEME_STORAGE_KEY);
     return storedPreference === "light" ||
       storedPreference === "dark" ||
       storedPreference === "system"
       ? storedPreference
       : "system";
-  });
+  } catch {
+    return "system";
+  }
+};
+
+export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
+  const [preference, setPreferenceState] =
+    useState<ThemePreference>(getStoredPreference);
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>(() => {
     if (typeof window === "undefined") return "dark";
     return getSystemTheme();
   });
 
   useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const updateSystemTheme = () => setSystemTheme(getSystemTheme());
     updateSystemTheme();
@@ -57,7 +74,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setPreference = useCallback((nextPreference: ThemePreference) => {
     setPreferenceState(nextPreference);
-    window.localStorage.setItem(THEME_STORAGE_KEY, nextPreference);
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextPreference);
+    } catch {
+      // The active preference still applies for this session when storage is blocked.
+    }
   }, []);
 
   const value = useMemo(

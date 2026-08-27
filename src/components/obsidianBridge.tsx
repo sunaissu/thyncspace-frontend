@@ -38,6 +38,22 @@ const sanitizeFileName = (title: string) =>
 const getDocumentContent = (note: Note) =>
   note.type === NoteType.Document ? (note as DocumentNote).content || "" : "";
 
+const getStoredVaultName = () => {
+  try {
+    return window.localStorage.getItem("thyncspace-obsidian-vault") || "";
+  } catch {
+    return "";
+  }
+};
+
+const storeVaultName = (vaultName: string) => {
+  try {
+    window.localStorage.setItem("thyncspace-obsidian-vault", vaultName);
+  } catch {
+    // Obsidian can still open when browser storage is unavailable.
+  }
+};
+
 function downloadMarkdown(note: Note) {
   if (note.type !== NoteType.Document) return;
   const blob = new Blob([getDocumentContent(note)], {
@@ -68,7 +84,7 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
 
   useEffect(() => {
     if (!open) return;
-    setVaultName(localStorage.getItem("thyncspace-obsidian-vault") || "");
+    setVaultName(getStoredVaultName());
     if (folderInputRef.current) {
       folderInputRef.current.setAttribute("webkitdirectory", "");
       folderInputRef.current.setAttribute("directory", "");
@@ -140,7 +156,7 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
     });
     if (vaultName.trim()) {
       parameters.set("vault", vaultName.trim());
-      localStorage.setItem("thyncspace-obsidian-vault", vaultName.trim());
+      storeVaultName(vaultName.trim());
     }
     const uri = `obsidian://new?${parameters.toString()}`;
     if (uri.length > MAX_OBSIDIAN_URI_LENGTH) {

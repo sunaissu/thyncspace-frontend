@@ -5,6 +5,7 @@ import {
   DocumentNote,
   WhiteboardNote,
   isNoteFavorited,
+  sanitizeNoteboardElements,
 } from "../model/note";
 import { formatDate } from "../util/dateformat";
 import { StarIcon } from "@phosphor-icons/react";
@@ -159,11 +160,11 @@ const NoteCard: React.FC<NoteCardProps> = ({
                       "elements" in parsed &&
                       Array.isArray(parsed.elements)
                     ) {
-                      elements = parsed.elements;
+                      elements = sanitizeNoteboardElements(parsed.elements);
                     }
                   } catch {}
                 } else {
-                  elements = wb.content.elements;
+                  elements = sanitizeNoteboardElements(wb.content.elements);
                 }
               }
               if (elements && elements.length > 0) {

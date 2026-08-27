@@ -3,6 +3,11 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { version: appVersion } = require("./package.json");
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const yjsEsmEntry = path.join(
+  path.dirname(require.resolve("yjs/package.json")),
+  "dist",
+  "yjs.mjs",
+);
 
 if (process.env.NODE_ENV === "production") {
   if (!serverUrl) {
@@ -57,8 +62,8 @@ const nextConfig = {
   reactStrictMode: true,
   trailingSlash: true,
   webpack: (config) => {
-    // Keep collaboration on the application's single Yjs peer instance.
-    config.resolve.alias.yjs = require.resolve("yjs");
+    // Force every ESM/CJS consumer onto one browser-safe Yjs module instance.
+    config.resolve.alias["yjs$"] = yjsEsmEntry;
     return config;
   },
 };
