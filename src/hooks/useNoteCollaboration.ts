@@ -21,6 +21,30 @@ export interface CollaborationPeer {
 
 const COLORS = ["#7c3aed", "#0891b2", "#16a34a", "#dc2626", "#ca8a04"];
 
+interface DocumentLifecycle {
+  destroyScheduled: boolean;
+  destroyed: boolean;
+  document: Y.Doc;
+  providers: Map<HocuspocusProvider, () => void>;
+  retired: Set<true>;
+}
+
+const scheduleDocumentDisposal = (lifecycle: DocumentLifecycle) => {
+  if (lifecycle.destroyScheduled || lifecycle.destroyed) return;
+  lifecycle.destroyScheduled = true;
+  queueMicrotask(() => {
+    lifecycle.destroyScheduled = false;
+    if (
+      lifecycle.retired.has(true) &&
+      lifecycle.providers.size === 0 &&
+      !lifecycle.destroyed
+    ) {
+      lifecycle.destroyed = true;
+      lifecycle.document.destroy();
+    }
+  });
+};
+
 const colorForUser = (userId: string) => {
   const total = Array.from(userId).reduce((sum, character) => sum + character.charCodeAt(0), 0);
   return COLORS[total % COLORS.length];
@@ -39,6 +63,16 @@ export function useNoteCollaboration(
   const document = useMemo(
     () => new Y.Doc({ guid: enabled ? noteId : `${noteId}:private` }),
     [enabled, noteId],
+  );
+  const lifecycle = useMemo<DocumentLifecycle>(
+    () => ({
+      destroyScheduled: false,
+      destroyed: false,
+      document,
+      providers: new Map(),
+      retired: new Set(),
+    }),
+    [document],
   );
   const [status, setStatus] = useState<CollaborationStatus>(
     enabled ? "connecting" : "local",
@@ -63,13 +97,18 @@ export function useNoteCollaboration(
       return;
     }
 
+    // A retry replaces an earlier provider for the same live Y.Doc. Its full
+    // state is still present in the document, so the replacement can sync it.
+    lifecycle.providers.forEach((dispose) => dispose());
+
+    let active = true;
     let synchronized = false;
     let failed = false;
     setReady(false);
     setStatus("connecting");
     setErrorMessage("");
     const connectionTimeout = window.setTimeout(() => {
-      if (!synchronized) {
+      if (active && !synchronized) {
         failed = true;
         setStatus("error");
         setErrorMessage("The live editing service did not respond in time.");
@@ -82,7 +121,7 @@ export function useNoteCollaboration(
       token: () => NotesApi.getCollaborationToken(noteId),
       flushDelay: 80,
       onStatus: ({ status: websocketStatus }) => {
-        if (failed) return;
+        if (!active || failed) return;
         if (websocketStatus === WebSocketStatus.Connected) {
           setStatus("connected");
         } else if (websocketStatus === WebSocketStatus.Connecting) {
@@ -97,7 +136,7 @@ export function useNoteCollaboration(
         }
       },
       onSynced: ({ state }) => {
-        if (state) {
+        if (active && state) {
           synchronized = true;
           failed = false;
           window.clearTimeout(connectionTimeout);
@@ -107,6 +146,7 @@ export function useNoteCollaboration(
         }
       },
       onAuthenticationFailed: ({ reason }) => {
+        if (!active) return;
         failed = true;
         window.clearTimeout(connectionTimeout);
         setStatus("error");
@@ -116,8 +156,11 @@ export function useNoteCollaboration(
             : reason || "Your access to this note could not be verified.",
         );
       },
-      onUnsyncedChanges: ({ number }) => setUnsyncedChanges(number),
+      onUnsyncedChanges: ({ number }) => {
+        if (active) setUnsyncedChanges(number);
+      },
       onAwarenessChange: ({ states }) => {
+        if (!active) return;
         const next = new Map<string, CollaborationPeer>();
         states.forEach((state) => {
           const awarenessUser = state.user as CollaborationPeer | undefined;
@@ -135,11 +178,58 @@ export function useNoteCollaboration(
       });
     }
 
-    return () => {
-      window.clearTimeout(connectionTimeout);
+    let finalized = false;
+    let waitForSync: ((data: { number: number }) => void) | undefined;
+    const finalizeProvider = () => {
+      if (finalized) return;
+      finalized = true;
+      if (waitForSync) provider.off("unsyncedChanges", waitForSync);
+      lifecycle.providers.delete(provider);
       provider.destroy();
+      scheduleDocumentDisposal(lifecycle);
     };
-  }, [connectionAttempt, document, enabled, noteId, user]);
+    lifecycle.providers.set(provider, finalizeProvider);
+
+    return () => {
+      active = false;
+      window.clearTimeout(connectionTimeout);
+      provider.flushPendingUpdates();
+      // The provider counts its initial sync handshake as an unsynced change.
+      // Before the first successful sync the editor was never writable, so
+      // retaining that provider cannot preserve a user edit and only leaks a
+      // reconnect loop after authentication or connection failures.
+      if (!synchronized || !provider.hasUnsyncedChanges) {
+        finalizeProvider();
+        return;
+      }
+
+      // Keep a retired note's provider connected until the server has
+      // acknowledged its queued updates. It then tears itself and the Y.Doc
+      // down without keeping the editor component mounted.
+      waitForSync = ({ number }) => {
+        if (number === 0) finalizeProvider();
+      };
+      provider.on("unsyncedChanges", waitForSync);
+    };
+  }, [connectionAttempt, document, enabled, lifecycle, noteId, user]);
+
+  useEffect(() => {
+    lifecycle.retired.clear();
+    return () => {
+      lifecycle.retired.add(true);
+      scheduleDocumentDisposal(lifecycle);
+    };
+  }, [lifecycle]);
+
+  useEffect(() => {
+    if (!enabled || unsyncedChanges === 0) return;
+    const warnBeforeExit = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", warnBeforeExit);
+    return () => window.removeEventListener("beforeunload", warnBeforeExit);
+  }, [enabled, unsyncedChanges]);
 
   return {
     document,

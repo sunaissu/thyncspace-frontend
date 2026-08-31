@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "thyncspace-pwa";
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const STATIC_CACHE = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   "/offline.html",
@@ -25,7 +25,9 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((key) => key !== STATIC_CACHE)
+            .filter(
+              (key) => key.startsWith(`${CACHE_PREFIX}-`) && key !== STATIC_CACHE,
+            )
             .map((key) => caches.delete(key)),
         ),
       )

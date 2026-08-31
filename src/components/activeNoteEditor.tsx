@@ -77,6 +77,19 @@ const emptyWhiteboard = (): Pick<WhiteboardContent, "elements" | "viewport"> => 
   viewport: { panX: 0, panY: 0, zoom: 1 },
 });
 
+const viewportsEqual = (
+  left: WhiteboardContent["viewport"],
+  right: WhiteboardContent["viewport"],
+) =>
+  left.panX === right.panX &&
+  left.panY === right.panY &&
+  left.zoom === right.zoom;
+
+interface PendingViewportWrite {
+  next: WhiteboardContent["viewport"];
+  previous: WhiteboardContent["viewport"];
+}
+
 const useDocumentHistory = (document: Y.Doc, enabled: boolean) => {
   const managerRef = useRef<Y.UndoManager | null>(null);
   const [availability, setAvailability] = useState({
@@ -213,6 +226,11 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const richEditorRef = useRef<RichTextEditorHandle>(null);
   const initializedLocalWhiteboardRef = useRef<Y.Doc | null>(null);
+  const pendingViewportWriteRef = useRef<PendingViewportWrite | null>(null);
+
+  useEffect(() => {
+    pendingViewportWriteRef.current = null;
+  }, [collaboration.document]);
 
   useEffect(() => {
     if (!collaboration.local) return;
@@ -239,14 +257,26 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     initializeWhiteboardElements,
   ]);
 
-  const whiteboardRevision = useMemo(
-    () =>
-      JSON.stringify({
-        elements: whiteboardElements,
-        viewport: whiteboardBinding.viewport,
+  const privateWhiteboardSnapshot = useMemo(() => {
+    if (!collaboration.local || note.type !== NoteType.Whiteboard) return null;
+    const snapshot = {
+      elements: whiteboardElements,
+      viewport: whiteboardBinding.viewport,
+    };
+    return {
+      revision: JSON.stringify(snapshot),
+      value: JSON.stringify({
+        version: 1,
+        ...snapshot,
+        savedAt: new Date().toISOString(),
       }),
-    [whiteboardBinding.viewport, whiteboardElements],
-  );
+    };
+  }, [
+    collaboration.local,
+    note.type,
+    whiteboardBinding.viewport,
+    whiteboardElements,
+  ]);
   const initialWhiteboardRevision = useMemo(
     () =>
       JSON.stringify({
@@ -255,24 +285,18 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       }),
     [initialWhiteboard],
   );
-  const serializedWhiteboard = useMemo(
-    () =>
-      JSON.stringify({
-        version: 1,
-        elements: whiteboardElements,
-        viewport: whiteboardBinding.viewport,
-        savedAt: new Date().toISOString(),
-      }),
-    [whiteboardBinding.viewport, whiteboardElements],
-  );
   const privateRevision =
-    note.type === NoteType.Document ? content : whiteboardRevision;
+    note.type === NoteType.Document
+      ? content
+      : privateWhiteboardSnapshot?.revision ?? "";
   const initialPrivateRevision =
     note.type === NoteType.Document
       ? initialDocumentContent
       : initialWhiteboardRevision;
   const privateValue =
-    note.type === NoteType.Document ? content : serializedWhiteboard;
+    note.type === NoteType.Document
+      ? content
+      : privateWhiteboardSnapshot?.value ?? "";
   const recoverPrivateDraft = useCallback(
     (draftValue: string) => {
       if (readOnly) return false;
@@ -404,10 +428,39 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
 
   const handleViewportChange = useCallback(
     (viewport: Parameters<typeof whiteboardBinding.onViewportChange>[0]) => {
-      whiteboardBinding.onViewportChange(viewport);
+      const nextViewport = sanitizeNoteboardViewport(viewport);
+      if (
+        viewportsEqual(nextViewport, whiteboardBinding.viewport) ||
+        (pendingViewportWriteRef.current !== null &&
+          viewportsEqual(nextViewport, pendingViewportWriteRef.current.next))
+      ) {
+        return;
+      }
+
+      // Noteboard 2.0 can report a controlled viewport after applying it.
+      // Suppress both that external echo and duplicate events emitted before
+      // the Yjs binding has rendered its updated snapshot.
+      pendingViewportWriteRef.current = {
+        next: nextViewport,
+        previous: whiteboardBinding.viewport,
+      };
+      whiteboardBinding.onViewportChange(nextViewport);
     },
     [whiteboardBinding],
   );
+
+  useEffect(() => {
+    const pending = pendingViewportWriteRef.current;
+    if (
+      pending !== null &&
+      !viewportsEqual(pending.previous, whiteboardBinding.viewport)
+    ) {
+      // The binding either acknowledged this write or a remote transaction
+      // superseded it. In both cases a future gesture may legitimately revisit
+      // the same viewport and must no longer be treated as a duplicate.
+      pendingViewportWriteRef.current = null;
+    }
+  }, [whiteboardBinding.viewport]);
 
   useEffect(() => {
     if (!editorReady || note.type !== NoteType.Whiteboard) return;

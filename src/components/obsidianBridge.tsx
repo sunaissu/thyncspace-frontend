@@ -178,11 +178,27 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
       if (directoryPicker) {
         const directory = await directoryPicker();
         const usedFileNames = new Map<string, number>();
+        let renamedFiles = 0;
         for (const note of documentNotes) {
           const baseName = sanitizeFileName(note.title);
-          const occurrence = (usedFileNames.get(baseName.toLowerCase()) || 0) + 1;
-          usedFileNames.set(baseName.toLowerCase(), occurrence);
-          const uniqueName = occurrence === 1 ? baseName : `${baseName} (${occurrence})`;
+          const key = baseName.toLowerCase();
+          let occurrence = (usedFileNames.get(key) || 0) + 1;
+          let uniqueName = occurrence === 1 ? baseName : `${baseName} (${occurrence})`;
+
+          // File System Access writes truncate existing files. Pick the first
+          // available suffix so exporting a vault never overwrites local notes.
+          while (true) {
+            try {
+              await directory.getFileHandle(`${uniqueName}.md`);
+              occurrence += 1;
+              uniqueName = `${baseName} (${occurrence})`;
+              renamedFiles += 1;
+            } catch (error) {
+              if (error instanceof DOMException && error.name === "NotFoundError") break;
+              throw error;
+            }
+          }
+          usedFileNames.set(key, occurrence);
           const fileHandle = await directory.getFileHandle(
             `${uniqueName}.md`,
             { create: true },
@@ -191,7 +207,10 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
           await writable.write(getDocumentContent(note));
           await writable.close();
         }
-        setStatus(`Exported ${documentNotes.length} Markdown notes to the selected folder.`);
+        setStatus(
+          `Exported ${documentNotes.length} Markdown notes to the selected folder.` +
+            (renamedFiles > 0 ? " Existing files were preserved with numbered names." : ""),
+        );
       } else {
         documentNotes.forEach((note, index) => {
           window.setTimeout(() => downloadMarkdown(note), index * 120);
