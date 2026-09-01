@@ -35,20 +35,18 @@ const NoteCard: React.FC<NoteCardProps> = ({
   }
 
   return (
-    <>
-      <div
-        className="note-card"
+    <article
+      className={onToggleFavorite ? "note-card has-card-action" : "note-card"}
+    >
+      <button
+        type="button"
+        className="note-card-open"
         onClick={() => onOpen?.(note._id)}
-        style={{
-          padding: "0.75rem",
-          display: "flex",
-          flexDirection: "column",
-          gap: "0.75rem",
-          height: "100%",
-        }}
+        aria-label={`Open note: ${title}`}
       >
         {/* Title row */}
         <div
+          className="note-card-title-row"
           style={{
             display: "flex",
             alignItems: "flex-start",
@@ -58,6 +56,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
           }}
         >
           <div
+            className="note-card-title"
             style={{
               fontWeight: 600,
               fontSize: "15px",
@@ -76,39 +75,6 @@ const NoteCard: React.FC<NoteCardProps> = ({
               color="var(--color-accent-yellow)"
               style={{ flexShrink: 0, marginTop: "1px" }}
             />
-          )}
-          {onToggleFavorite && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleFavorite(note._id);
-              }}
-              title={isFav ? "Remove from favorites" : "Add to favorites"}
-              style={{
-                background: "transparent",
-                border: "none",
-                cursor: "pointer",
-                color: isFav
-                  ? "var(--color-accent-yellow)"
-                  : "var(--color-text-muted)",
-                transition: "background-color 0.15s ease, color 0.15s ease",
-                padding: "2px",
-                borderRadius: "4px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.backgroundColor =
-                  "rgba(234, 179, 8, 0.1)")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.backgroundColor = "transparent")
-              }
-            >
-              <StarIcon size={16} weight={isFav ? "fill" : "bold"} />
-            </button>
           )}
         </div>
 
@@ -223,8 +189,21 @@ const NoteCard: React.FC<NoteCardProps> = ({
             {note.type === NoteType.Document ? "Doc" : "Board"}
           </span>
         </div>
-      </div>
-    </>
+      </button>
+      {onToggleFavorite && (
+        <button
+          type="button"
+          className={
+            isFav ? "note-card-favorite is-active" : "note-card-favorite"
+          }
+          onClick={() => onToggleFavorite(note._id)}
+          title={isFav ? "Remove from favorites" : "Add to favorites"}
+          aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+        >
+          <StarIcon size={16} weight={isFav ? "fill" : "bold"} />
+        </button>
+      )}
+    </article>
   );
 };
 

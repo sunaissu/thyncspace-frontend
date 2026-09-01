@@ -3,18 +3,78 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#090b0f" />
+    <meta id="theme-color-meta" name="theme-color" content="#0a0a0b" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; navigate-to 'self'"
+      content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; navigate-to 'self'"
     />
     <title>ThyncSpace is offline</title>
+    <script src="/theme-init.js"></script>
     <style>
       :root {
-        color-scheme: dark;
+        color-scheme: light;
+        --offline-bg: #f6f6f7;
+        --offline-surface: #ffffff;
+        --offline-border: #d4d4d8;
+        --offline-text: #18181b;
+        --offline-muted: #5f5f68;
+        --offline-shadow: rgba(24, 24, 27, 0.14);
+        --offline-accent: #0b63e5;
+        --offline-on-accent: #ffffff;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: #090b0f;
-        color: #eef2f7;
+        background: var(--offline-bg);
+        color: var(--offline-text);
+      }
+
+      html[data-theme="dark"] {
+        color-scheme: dark;
+        --offline-bg: #0a0a0b;
+        --offline-surface: #111113;
+        --offline-border: #4b4b55;
+        --offline-text: #fafafa;
+        --offline-muted: #b4b4bd;
+        --offline-shadow: rgba(0, 0, 0, 0.35);
+      }
+
+      html[data-accent="violet"] {
+        --offline-accent: #6d28d9;
+      }
+
+      html[data-accent="emerald"] {
+        --offline-accent: #047857;
+      }
+
+      html[data-accent="amber"] {
+        --offline-accent: #92400e;
+      }
+
+      html[data-accent="rose"] {
+        --offline-accent: #be123c;
+      }
+
+      html[data-theme="dark"][data-accent="blue"] {
+        --offline-accent: #60a5fa;
+        --offline-on-accent: #0a0a0b;
+      }
+
+      html[data-theme="dark"][data-accent="violet"] {
+        --offline-accent: #a78bfa;
+        --offline-on-accent: #0a0a0b;
+      }
+
+      html[data-theme="dark"][data-accent="emerald"] {
+        --offline-accent: #6ee7b7;
+        --offline-on-accent: #0a0a0b;
+      }
+
+      html[data-theme="dark"][data-accent="amber"] {
+        --offline-accent: #fbbf24;
+        --offline-on-accent: #0a0a0b;
+      }
+
+      html[data-theme="dark"][data-accent="rose"] {
+        --offline-accent: #fb7185;
+        --offline-on-accent: #0a0a0b;
       }
 
       body {
@@ -24,15 +84,16 @@
         place-items: center;
         padding: 1.5rem;
         box-sizing: border-box;
+        background: var(--offline-bg);
       }
 
       main {
         width: min(100%, 30rem);
         padding: 2rem;
-        background: #101319;
-        border: 1px solid #39414e;
+        background: var(--offline-surface);
+        border: 1px solid var(--offline-border);
         border-radius: 0.75rem;
-        box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.35);
+        box-shadow: 8px 8px 0 var(--offline-shadow);
       }
 
       img {
@@ -47,7 +108,7 @@
 
       p {
         margin: 0 0 1.5rem;
-        color: #aab3c1;
+        color: var(--offline-muted);
         line-height: 1.6;
       }
 
@@ -55,8 +116,8 @@
         display: inline-block;
         padding: 0.75rem 1rem;
         border-radius: 0.4rem;
-        background: #7dd3fc;
-        color: #090b0f;
+        background: var(--offline-accent);
+        color: var(--offline-on-accent);
         font-weight: 700;
         text-decoration: none;
       }

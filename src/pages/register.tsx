@@ -108,30 +108,6 @@ const SignUp: React.FC = () => {
         >
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                width: "48px",
-                height: "48px",
-                background: "var(--color-accent-blue)",
-                borderRadius: "4px",
-                border: "2px solid var(--color-bg)",
-                boxShadow: "4px 4px 0px rgba(0,0,0,0.5)",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "1.25rem",
-              }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                  stroke="#fff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
             <h1
               style={{
                 fontSize: "1.6rem",
@@ -199,7 +175,7 @@ const SignUp: React.FC = () => {
                 style={{
                   flex: 1,
                   height: "1px",
-                  background: "rgba(255,255,255,0.1)",
+                  background: "var(--color-border)",
                 }}
               />
               <span
@@ -217,7 +193,7 @@ const SignUp: React.FC = () => {
                 style={{
                   flex: 1,
                   height: "1px",
-                  background: "rgba(255,255,255,0.1)",
+                  background: "var(--color-border)",
                 }}
               />
             </div>

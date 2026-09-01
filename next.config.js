@@ -53,9 +53,11 @@ if (process.env.NODE_ENV === "production") {
 }
 
 const nextConfig = {
+  agentRules: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,
   },
+  devIndicators: false,
   images: { unoptimized: true },
   output: "export",
   poweredByHeader: false,

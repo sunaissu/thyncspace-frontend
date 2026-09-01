@@ -3,7 +3,7 @@ import Script from "next/script";
 
 export default function Document() {
   return (
-    <Html lang="en" suppressHydrationWarning>
+    <Html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <Head>
         <meta name="application-name" content="ThyncSpace" />
         <meta
@@ -21,10 +21,15 @@ export default function Document() {
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         />
-        <meta name="theme-color" content="#090b0f" />
+        <meta id="theme-color-meta" name="theme-color" content="#0a0a0b" />
         <link rel="manifest" href="/manifest.webmanifest" />
-        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" href="/favicon.ico" sizes="32x32" />
+        <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" sizes="any" />
+        <link
+          rel="apple-touch-icon"
+          href="/icons/apple-touch-icon.png"
+          sizes="180x180"
+        />
         <Script src="/theme-init.js" strategy="beforeInteractive" />
       </Head>
       <body>

@@ -55,7 +55,10 @@ import {
 } from "../model/note";
 import { User } from "../model/user";
 import NoteContext from "../context/noteContext";
-import { useTheme } from "../context/themeContext";
+import {
+  ACCENT_BRAND_COLORS,
+  useTheme,
+} from "../context/themeContext";
 import { useNoteCollaboration } from "../hooks/useNoteCollaboration";
 import { usePrivateNoteAutosave } from "../hooks/usePrivateNoteAutosave";
 import LinkEditorDialog from "./linkEditorDialog";
@@ -220,7 +223,16 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const [linkInitialText, setLinkInitialText] = useState("");
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
   const { setNotes } = useContext(NoteContext);
-  const { preference, setPreference } = useTheme();
+  const {
+    preference,
+    resolvedTheme,
+    accentTheme,
+    setPreference,
+  } = useTheme();
+  const noteboardBrandColors = useMemo(
+    () => ACCENT_BRAND_COLORS[accentTheme][resolvedTheme],
+    [accentTheme, resolvedTheme],
+  );
 
   const boardRef = useRef<NoteboardRef>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -571,11 +583,11 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
         height: payload.height,
         fontSize: 20,
         fontWeight: "bold",
-        strokeColor: "#38bdf8",
+        strokeColor: noteboardBrandColors.primary,
       });
       board.setElements([...board.getElements(), calculationElement]);
     },
-    [readOnly],
+    [noteboardBrandColors.primary, readOnly],
   );
 
   const counts = useMemo(() => {
@@ -740,6 +752,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
               onThemeChange={setPreference}
               readOnly={readOnly}
               theme={preference}
+              brandColors={noteboardBrandColors}
             />
           </div>
           {calculatorOpen && (

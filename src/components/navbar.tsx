@@ -1,12 +1,12 @@
 import {
   CaretDownIcon,
   GearIcon,
-  NotebookIcon,
   NotepadIcon,
   SignOutIcon,
   UsersIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
+import Image from "next/image";
 import React from "react";
 import { User } from "../model/user";
 
@@ -26,8 +26,8 @@ const Navbar: React.FC<Props> = ({ loggedInUser, onLogout }) => {
           className="brand-link"
           aria-label="ThyncSpace home"
         >
-          <span className="brand-mark">
-            <NotebookIcon weight="bold" size={16} />
+          <span className="brand-mark" aria-hidden="true">
+            <Image src="/icons/icon.svg" alt="" width={26} height={26} priority />
           </span>
           <span className="brand-name">
             Thync<span>Space</span>

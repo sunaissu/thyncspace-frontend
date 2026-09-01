@@ -1,14 +1,23 @@
 import Head from "next/head";
 import Link from "next/link";
+import { useRouter } from "next/router";
 import React from "react";
 import * as NotesApi from "../util/fetch";
 import env from "@/util/config";
 
 const Login: React.FC = () => {
+  const router = useRouter();
   const [email, setEmail] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
   const [errMessage, setErrMessage] = React.useState<string>("");
   const [loading, setLoading] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    if (!router.isReady || router.query.oauth_error !== "google") return;
+    setErrMessage(
+      "Google sign-in could not be completed. Please try again or use your email and password.",
+    );
+  }, [router.isReady, router.query.oauth_error]);
 
   const loginClicked = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -79,30 +88,6 @@ const Login: React.FC = () => {
         >
           {/* Header */}
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-            <div
-              style={{
-                display: "inline-flex",
-                width: "48px",
-                height: "48px",
-                background: "var(--color-accent-blue)",
-                borderRadius: "4px",
-                border: "2px solid var(--color-bg)",
-                boxShadow: "4px 4px 0px rgba(0,0,0,0.5)",
-                alignItems: "center",
-                justifyContent: "center",
-                marginBottom: "1.25rem",
-              }}
-            >
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                <path
-                  d="M15 3H19a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h4M12 17v-6m0 0V9m0 2H9m3 0h3"
-                  stroke="#fff"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
             <h1
               style={{
                 fontSize: "1.6rem",
@@ -170,7 +155,7 @@ const Login: React.FC = () => {
                 style={{
                   flex: 1,
                   height: "1px",
-                  background: "rgba(255,255,255,0.1)",
+                  background: "var(--color-border)",
                 }}
               />
               <span
@@ -188,7 +173,7 @@ const Login: React.FC = () => {
                 style={{
                   flex: 1,
                   height: "1px",
-                  background: "rgba(255,255,255,0.1)",
+                  background: "var(--color-border)",
                 }}
               />
             </div>

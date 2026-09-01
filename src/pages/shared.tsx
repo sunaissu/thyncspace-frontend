@@ -1,14 +1,16 @@
+import {
+  HandshakeIcon,
+  MagnifyingGlassIcon,
+  SpinnerBallIcon,
+  XIcon,
+} from "@phosphor-icons/react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import AppLayout from "../components/appLayout";
-import {
-  MagnifyingGlassIcon,
-  HandshakeIcon,
-} from "@phosphor-icons/react";
+import NoteCard from "../components/note";
 import { Note, noteMatchesSearch } from "../model/note";
 import { User } from "../model/user";
-import NoteCard from "../components/note";
 import * as NotesApi from "../util/fetch";
 
 interface SharedPageProps {
@@ -18,195 +20,168 @@ interface SharedPageProps {
 const SharedNotes: React.FC<SharedPageProps> = ({ loggedInUser }) => {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
-  const [search, setSearch] = useState<string>("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function loadShared() {
-      try {
-        setError("");
-        const fetched = await NotesApi.fetchSharedNotes();
-        setNotes(fetched);
-      } catch (error) {
-        console.error(error);
-        setError(error instanceof Error ? error.message : "Could not load shared notes.");
-      } finally {
-        setLoading(false);
-      }
+  const loadShared = useCallback(async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setNotes(await NotesApi.fetchSharedNotes());
+    } catch (loadError) {
+      console.error(loadError);
+      setError(
+        loadError instanceof Error
+          ? loadError.message
+          : "Could not load shared notes.",
+      );
+    } finally {
+      setLoading(false);
     }
-    loadShared();
   }, []);
+
+  useEffect(() => {
+    void loadShared();
+  }, [loadShared]);
 
   const handleToggleFavorite = async (noteId: string) => {
     try {
       setError("");
       const updated = await NotesApi.toggleFavoriteNote(noteId);
-      setNotes((prev) =>
-        prev.map((n) =>
-          n._id === noteId ? { ...n, favoritedBy: updated.favoritedBy } : n,
+      setNotes((currentNotes) =>
+        currentNotes.map((note) =>
+          note._id === noteId
+            ? { ...note, favoritedBy: updated.favoritedBy }
+            : note,
         ),
       );
-    } catch (error) {
-      console.error(error);
-      setError(error instanceof Error ? error.message : "Could not update favorite.");
+    } catch (favoriteError) {
+      console.error(favoriteError);
+      setError(
+        favoriteError instanceof Error
+          ? favoriteError.message
+          : "Could not update favorite.",
+      );
     }
   };
 
-  const filteredNotes = notes.filter((n) => noteMatchesSearch(n, search));
+  const normalizedSearch = search.trim();
+  const filteredNotes = useMemo(
+    () => notes.filter((note) => noteMatchesSearch(note, normalizedSearch)),
+    [normalizedSearch, notes],
+  );
+  const hasSearch = normalizedSearch.length > 0;
 
   return (
     <AppLayout>
-      <div>
-        <Head>
-          <title>Shared Notes | ThyncSpace</title>
-        </Head>
+      <Head>
+        <title>Shared With Me | ThyncSpace</title>
+      </Head>
 
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "space-between",
-            marginBottom: "2rem",
-            flexWrap: "wrap",
-            gap: "1rem",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontSize: "0.85rem",
-                fontWeight: 800,
-                color: "var(--color-accent-red)",
-                letterSpacing: "0.1em",
-                marginBottom: "0.4rem",
-                textTransform: "uppercase",
-              }}
-            >
-              SHARED
+      <div className="shared-page">
+        <header className="shared-header">
+          <div className="shared-header-copy">
+            <span className="shared-header-icon" aria-hidden="true">
+              <HandshakeIcon size={25} weight="bold" />
+            </span>
+            <div>
+              <span className="shared-eyebrow">Collaboration</span>
+              <h1>Shared with me</h1>
+              <p>Notes and boards other people have invited you to work on.</p>
             </div>
-            <h1
-              style={{
-                fontSize: "1.5rem",
-                fontWeight: 800,
-                color: "var(--color-text)",
-                letterSpacing: "-0.02em",
-                lineHeight: 1.1,
-              }}
-            >
-              Shared With Me
-            </h1>
-            <p
-              style={{
-                color: "var(--color-text-muted)",
-                fontSize: "0.875rem",
-                marginTop: "0.35rem",
-                fontWeight: 500,
-              }}
-            >
-              {filteredNotes.length} shared{" "}
-              {filteredNotes.length === 1 ? "note" : "notes"}
-            </p>
           </div>
-
-          {/* Search */}
-          <div style={{ position: "relative", minWidth: "260px" }}>
-            <MagnifyingGlassIcon
-              size={16}
-              weight="bold"
-              style={{
-                position: "absolute",
-                left: "0.9rem",
-                top: "50%",
-                transform: "translateY(-50%)",
-                color: "var(--color-text-muted)",
-              }}
-            />
-            <input
-              className="input-base"
-              style={{ padding: "0.4rem 0.4rem 0.4rem 2.25rem" }}
-              placeholder="Search shared notes…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {error && <p className="new-note-dialog-error" role="alert">{error}</p>}
-
-        {/* Content */}
-        {loading ? (
           <div
-            style={{
-              color: "var(--color-text-muted)",
-              textAlign: "center",
-              padding: "2rem",
-            }}
+            className="shared-summary"
+            aria-label={`${notes.length} shared ${notes.length === 1 ? "note" : "notes"}`}
           >
-            Loading…
+            <strong>{notes.length}</strong>
+            <span>{notes.length === 1 ? "shared note" : "shared notes"}</span>
+          </div>
+        </header>
+
+        <section className="shared-toolbar" aria-label="Shared notes controls">
+          <div className="shared-search" role="search">
+            <label className="sr-only" htmlFor="shared-notes-search">
+              Search shared notes
+            </label>
+            <MagnifyingGlassIcon size={17} weight="bold" aria-hidden="true" />
+            <input
+              id="shared-notes-search"
+              className="input-base"
+              type="search"
+              placeholder="Search by title or content"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                aria-label="Clear shared notes search"
+              >
+                <XIcon size={15} weight="bold" />
+              </button>
+            )}
+          </div>
+          <p className="shared-result-count" aria-live="polite">
+            {hasSearch
+              ? `${filteredNotes.length} ${filteredNotes.length === 1 ? "match" : "matches"}`
+              : "Search everything shared with you"}
+          </p>
+        </section>
+
+        {error && (
+          <div className="shared-error" role="alert">
+            <span>{error}</span>
+            <button type="button" onClick={() => void loadShared()}>
+              Try again
+            </button>
+          </div>
+        )}
+
+        {loading ? (
+          <div className="shared-loading" role="status">
+            <SpinnerBallIcon className="spin" size={25} />
+            <span>Loading shared notes...</span>
           </div>
         ) : filteredNotes.length === 0 ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              minHeight: "40vh",
-              gap: "1rem",
-            }}
-          >
-            <div
-              style={{
-                width: "64px",
-                height: "64px",
-                background: "var(--color-surface)",
-                border: "2px solid var(--color-border)",
-                borderRadius: "4px",
-                boxShadow: "4px 4px 0px rgba(0,0,0,0.5)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderTop: "6px solid var(--color-accent-red)",
-              }}
-            >
-              <HandshakeIcon
-                size={32}
-                weight="bold"
-                color="var(--color-text)"
-              />
-            </div>
-            <div
-              style={{
-                color: "var(--color-text)",
-                fontSize: "1.1rem",
-                fontWeight: 700,
-              }}
-            >
-              No shared notes yet.
-            </div>
-            <p
-              style={{
-                color: "var(--color-text-muted)",
-                fontSize: "0.85rem",
-                fontWeight: 500,
-              }}
-            >
-              Notes shared with you will appear here.
+          <div className="shared-empty">
+            <span className="shared-empty-icon" aria-hidden="true">
+              {hasSearch ? (
+                <MagnifyingGlassIcon size={28} weight="bold" />
+              ) : (
+                <HandshakeIcon size={28} weight="bold" />
+              )}
+            </span>
+            <h2>{hasSearch ? "No matching notes" : "Nothing shared yet"}</h2>
+            <p>
+              {hasSearch
+                ? "Try another title or clear your search to see every shared note."
+                : "When someone shares a note or board with you, it will appear here."}
             </p>
+            {hasSearch && (
+              <button type="button" onClick={() => setSearch("")}>
+                Clear search
+              </button>
+            )}
           </div>
         ) : (
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-              gap: "0.75rem",
-            }}
-          >
+          <div className="shared-grid">
             {filteredNotes.map((note) => {
+              const permission = note.sharedWith.find(
+                ({ userId }) => userId === loggedInUser?._id,
+              )?.permission;
+              const canEdit = permission === "editor";
+
               return (
-                <div key={note._id}>
+                <div className="shared-note-entry" key={note._id}>
+                  <div className="shared-note-access">
+                    <span>Your access</span>
+                    <strong className={canEdit ? "is-editor" : "is-viewer"}>
+                      {canEdit ? "Can edit" : "View only"}
+                    </strong>
+                  </div>
                   <NoteCard
                     note={note}
                     loggedInUserId={loggedInUser?._id}

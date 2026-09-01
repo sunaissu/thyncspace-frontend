@@ -1,9 +1,11 @@
 const CACHE_PREFIX = "thyncspace-pwa";
-const CACHE_VERSION = "v2";
+const CACHE_VERSION = "v4";
 const STATIC_CACHE = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   "/offline.html",
   "/manifest.webmanifest",
+  "/favicon.ico",
+  "/theme-init.js",
   "/icons/icon.svg",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
@@ -52,6 +54,15 @@ self.addEventListener("fetch", (event) => {
 
   if (request.mode === "navigate") {
     event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
+    return;
+  }
+
+  if (PRECACHE_URLS.includes(url.pathname)) {
+    event.respondWith(
+      caches.match(url.pathname).then((cachedResponse) => {
+        return cachedResponse ?? fetch(request);
+      }),
+    );
     return;
   }
 

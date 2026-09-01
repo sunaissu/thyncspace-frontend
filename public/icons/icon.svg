@@ -1,9 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
-  <title id="title">ThyncSpace</title>
-  <rect width="512" height="512" fill="#090b0f"/>
-  <rect x="82" y="66" width="348" height="380" rx="62" fill="#171b22" stroke="#39414e" stroke-width="16"/>
-  <path d="M328 66h40a62 62 0 0 1 62 62v40z" fill="#7dd3fc"/>
-  <path d="M328 66v66a36 36 0 0 0 36 36h66" fill="none" stroke="#eef2f7" stroke-linejoin="round" stroke-width="16"/>
-  <path d="M166 218h180M166 278h180M166 338h118" fill="none" stroke="#eef2f7" stroke-linecap="round" stroke-width="22"/>
-  <circle cx="120" cy="108" r="18" fill="#a78bfa"/>
+  <title id="title">ThyncSpace folded note</title>
+  <rect width="512" height="512" fill="#0b63e5"/>
+  <path d="M75 53h362v300L331 459H75Z" fill="#fff" stroke="#0849b5" stroke-linejoin="round" stroke-width="14"/>
+  <path d="M331 459V353h106Z" fill="#bfdbfe" stroke="#0849b5" stroke-linejoin="round" stroke-width="14"/>
+  <path d="M159 190h194M159 260h194M159 331h137" fill="none" stroke="#0b63e5" stroke-linecap="round" stroke-width="23"/>
 </svg>

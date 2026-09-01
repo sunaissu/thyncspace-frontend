@@ -19,7 +19,7 @@ export interface CollaborationPeer {
   name: string;
 }
 
-const COLORS = ["#7c3aed", "#0891b2", "#16a34a", "#dc2626", "#ca8a04"];
+const COLORS = ["#2563eb", "#0891b2", "#16a34a", "#dc2626", "#ca8a04"];
 
 interface DocumentLifecycle {
   destroyScheduled: boolean;

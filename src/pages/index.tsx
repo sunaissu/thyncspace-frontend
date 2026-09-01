@@ -1,4 +1,5 @@
 import Head from "next/head";
+import Image from "next/image";
 import Link from "next/link";
 import { User } from "../model/user";
 
@@ -91,10 +92,10 @@ export default function Home({ loggedInUser }: HomeProps) {
               letterSpacing: "-0.03em",
             }}
           >
-            <span style={{ color: "var(--color-accent-red)" }}>Think.</span>{" "}
+            <span style={{ color: "var(--color-text)" }}>Think.</span>{" "}
             <span style={{ color: "var(--color-accent-blue)" }}>Create.</span>
             <br />
-            <span style={{ color: "var(--color-accent-yellow)" }}>Save.</span>
+            <span style={{ color: "var(--color-text)" }}>Save.</span>
           </h1>
 
           {/* Subheading */}
@@ -200,7 +201,7 @@ export default function Home({ loggedInUser }: HomeProps) {
               icon: "✏️",
               title: "Quick Capture",
               desc: "Jot down ideas the moment they come. No friction, no fuss — just write.",
-              color: "var(--color-accent-red)",
+              color: "var(--color-accent-blue)",
             },
             {
               icon: "🗂️",
@@ -212,7 +213,7 @@ export default function Home({ loggedInUser }: HomeProps) {
               icon: "🔐",
               title: "Secure Access",
               desc: "Each note belongs to your account. Login protected and always private.",
-              color: "var(--color-accent-yellow)",
+              color: "var(--color-accent-blue)",
             },
           ].map((feature) => (
             <div
@@ -271,12 +272,12 @@ export default function Home({ loggedInUser }: HomeProps) {
             marginBottom: "1rem",
           }}
         >
-          <div
-            style={{
-              width: "24px",
-              height: "24px",
-              background: "var(--color-text)",
-            }}
+          <Image
+            src="/icons/icon.svg"
+            alt=""
+            width={24}
+            height={24}
+            aria-hidden="true"
           />
           <span
             style={{

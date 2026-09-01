@@ -7,7 +7,12 @@ import {
 import Head from "next/head";
 import React, { FormEvent, useEffect, useState } from "react";
 import AppLayout from "../components/appLayout";
-import { ThemePreference, useTheme } from "../context/themeContext";
+import {
+  ACCENT_BRAND_COLORS,
+  AccentTheme,
+  ThemePreference,
+  useTheme,
+} from "../context/themeContext";
 import type { User } from "../model/user";
 import * as NotesApi from "../util/fetch";
 
@@ -37,13 +42,51 @@ const themeOptions: Array<{
   },
 ];
 
+const accentOptions: Array<{
+  value: AccentTheme;
+  label: string;
+  description: string;
+}> = [
+  {
+    value: "blue",
+    label: "Blue",
+    description: "The default ThyncSpace accent.",
+  },
+  {
+    value: "violet",
+    label: "Violet",
+    description: "A calm, expressive accent.",
+  },
+  {
+    value: "emerald",
+    label: "Emerald",
+    description: "A focused, natural accent.",
+  },
+  {
+    value: "amber",
+    label: "Amber",
+    description: "A warm, energetic accent.",
+  },
+  {
+    value: "rose",
+    label: "Rose",
+    description: "A bright, confident accent.",
+  },
+];
+
 interface SettingsProps {
   loggedInUser?: User | null;
   onUserUpdate?: (user: User) => void;
 }
 
 const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
-  const { preference, resolvedTheme, setPreference } = useTheme();
+  const {
+    preference,
+    resolvedTheme,
+    accentTheme,
+    setPreference,
+    setAccentTheme,
+  } = useTheme();
   const [username, setUsername] = useState(loggedInUser?.username ?? "");
   const [profileStatus, setProfileStatus] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -126,6 +169,52 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
           </div>
         </section>
 
+        <section className="settings-section" aria-labelledby="accent-heading">
+          <div className="settings-section-heading">
+            <div>
+              <h2 id="accent-heading">Accent theme</h2>
+              <p>
+                Blue is the default. Choose the color that feels right on this
+                device.
+              </p>
+            </div>
+            <span className="resolved-theme-label">{accentTheme}</span>
+          </div>
+
+          <div
+            className="accent-option-grid"
+            role="group"
+            aria-label="Accent theme"
+          >
+            {accentOptions.map(({ value, label, description }) => {
+              const selected = accentTheme === value;
+              return (
+                <button
+                  type="button"
+                  key={value}
+                  className={selected ? "accent-option is-selected" : "accent-option"}
+                  onClick={() => setAccentTheme(value)}
+                  aria-pressed={selected}
+                >
+                  <span
+                    className="accent-swatch"
+                    style={{
+                      backgroundColor:
+                        ACCENT_BRAND_COLORS[value][resolvedTheme].primary,
+                    }}
+                    aria-hidden="true"
+                  />
+                  <span className="accent-option-copy">
+                    <strong>{label}</strong>
+                    <small>{description}</small>
+                  </span>
+                  {selected && <CheckIcon size={17} weight="bold" />}
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
         <section className="settings-section" aria-labelledby="profile-heading">
           <div className="settings-section-heading">
             <div>
@@ -133,27 +222,40 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
               <p>Update the name collaborators see when you share and edit notes.</p>
             </div>
           </div>
-          <form onSubmit={saveProfile} style={{ display: "grid", gap: "1rem", maxWidth: 520 }}>
-            <label>
-              <span>Username</span>
+          <form onSubmit={saveProfile} className="settings-profile-form">
+            <label className="settings-field" htmlFor="settings-username">
+              <span className="settings-field-label">Username</span>
               <input
+                id="settings-username"
+                name="username"
                 className="input-base"
                 minLength={2}
                 maxLength={50}
                 value={username}
                 onChange={(event) => setUsername(event.target.value)}
                 disabled={savingProfile}
+                autoComplete="username"
               />
             </label>
-            <label>
-              <span>Email</span>
+            <label className="settings-field" htmlFor="settings-email">
+              <span className="settings-field-label">
+                Email
+                <span className="settings-readonly-badge">Read only</span>
+              </span>
               <input
-                className="input-base"
+                id="settings-email"
+                name="email"
+                type="email"
+                className="input-base settings-readonly-input"
                 value={loggedInUser?.email ?? ""}
-                disabled
+                readOnly
+                aria-readonly="true"
                 aria-describedby="email-readonly-help"
+                autoComplete="email"
               />
-              <small id="email-readonly-help">Email changes are not enabled yet.</small>
+              <small id="email-readonly-help" className="settings-readonly-help">
+                This email is linked to your account and cannot be changed here.
+              </small>
             </label>
             <div>
               <button
@@ -168,7 +270,11 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
                 {savingProfile ? "Saving…" : "Save profile"}
               </button>
             </div>
-            {profileStatus && <p role="status">{profileStatus}</p>}
+            {profileStatus && (
+              <p className="settings-profile-status" role="status">
+                {profileStatus}
+              </p>
+            )}
           </form>
         </section>
 
