@@ -18,7 +18,7 @@
     "@phosphor-icons/react": "^2.1.10",
     "@sunaissu/calculator": "1.0.0",
     "@sunaissu/document-editor": "1.0.0",
-    "@sunaissu/noteboard": "2.0.0",
+    "@sunaissu/noteboard": "2.0.1",
     "next": "16.3.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
