@@ -44,7 +44,7 @@ interface NotesPageProps {
   loggedInUser: User | null;
 }
 
-type NoteFilter = "all" | "documents" | "boards" | "favorites";
+type NoteFilter = "all" | "shared" | "documents" | "boards" | "favorites";
 
 const relativeDate = (date: string) => {
   const timestamp = new Date(date).getTime();
@@ -100,7 +100,11 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     async function loadNotes() {
       try {
         setError("");
-        const fetchedNotes = await NotesApi.fetchNotes();
+        const [ownedNotes, sharedNotes] = await Promise.all([
+          NotesApi.fetchNotes(),
+          NotesApi.fetchSharedNotes(),
+        ]);
+        const fetchedNotes = [...ownedNotes, ...sharedNotes];
         let availableNotes = fetchedNotes;
         if (
           requestedNoteId &&
@@ -109,8 +113,14 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           const requestedNote = await NotesApi.fetchNote(requestedNoteId);
           availableNotes = [requestedNote, ...fetchedNotes];
         }
+        const sharedOnly = router.query.filter === "shared";
         setNotes(availableNotes);
-        setSelectedNoteId(requestedNoteId || availableNotes[0]?._id || null);
+        setFilter(sharedOnly ? "shared" : "all");
+        setSelectedNoteId(
+          requestedNoteId ||
+            (sharedOnly ? sharedNotes[0]?._id : availableNotes[0]?._id) ||
+            null,
+        );
       } catch (error) {
         console.error(error);
         setError(
@@ -121,7 +131,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
       }
     }
     loadNotes();
-  }, [router.isReady, router.query.noteId]);
+  }, [router.isReady, router.query.filter, router.query.noteId]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -265,6 +275,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     return notes
       .filter((note) => noteMatchesSearch(note, search))
       .filter((note) => {
+        if (filter === "shared") return note.owner !== loggedInUser?._id;
         if (filter === "documents") return note.type === NoteType.Document;
         if (filter === "boards") return note.type === NoteType.Whiteboard;
         if (filter === "favorites") {
@@ -301,9 +312,10 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const collaborationEnabled = !isOwner || Boolean(activeNote?.sharedWith.length);
 
   const filterOptions: Array<{ value: NoteFilter; label: string }> = [
-    { value: "all", label: "All" },
-    { value: "documents", label: "Docs" },
-    { value: "boards", label: "Boards" },
+    { value: "all", label: "All notes" },
+    { value: "shared", label: "Shared with me" },
+    { value: "documents", label: "Documents" },
+    { value: "boards", label: "Whiteboards" },
     { value: "favorites", label: "Starred" },
   ];
 
@@ -321,7 +333,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
         <div className={activeNote ? "notes-page has-active-note" : "notes-page"}>
           <header className="workspace-topbar">
             <div className="workspace-title">
-              <span className="eyebrow">Personal workspace</span>
+              <span className="eyebrow">Workspace</span>
               <div>
                 <h1>Notes</h1>
                 <span className="notes-count">{notes.length}</span>
@@ -338,14 +350,6 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               >
                 <SidebarSimpleIcon size={17} />
                 <span>{noteBrowserOpen ? "Hide list" : "Show list"}</span>
-              </button>
-              <button
-                type="button"
-                className="obsidian-button"
-                onClick={() => setObsidianOpen(true)}
-              >
-                <span className="mini-obsidian-mark">O</span>
-                <span>Obsidian</span>
               </button>
               <button
                 type="button"
@@ -392,20 +396,19 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                   )}
                 </label>
 
-                <div className="note-filters" role="tablist" aria-label="Note filters">
-                  {filterOptions.map((option) => (
-                    <button
-                      type="button"
-                      key={option.value}
-                      role="tab"
-                      aria-selected={filter === option.value}
-                      className={filter === option.value ? "is-active" : ""}
-                      onClick={() => setFilter(option.value)}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
+                <label className="note-filter-select">
+                  <span>Filter notes</span>
+                  <select
+                    value={filter}
+                    onChange={(event) => setFilter(event.target.value as NoteFilter)}
+                  >
+                    {filterOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               </div>
 
               <div className="note-list" aria-label="Notes">
@@ -419,12 +422,17 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                     const favorite = loggedInUser
                       ? isNoteFavorited(note, loggedInUser._id)
                       : false;
+                    const sharedWithUser = note.owner !== loggedInUser?._id;
+                    const permission = note.sharedWith.find(
+                      ({ userId }) => userId === loggedInUser?._id,
+                    )?.permission;
                     return (
-                      <div className="note-list-row" key={note._id}>
                       <button
+                        key={note._id}
                         type="button"
                         className={note._id === selectedNoteId ? "note-list-item is-active" : "note-list-item"}
                         onClick={() => closeOrSwitchNote(note._id)}
+                        aria-current={note._id === selectedNoteId ? "true" : undefined}
                       >
                         <span className={note.type === NoteType.Document ? "note-type-icon document" : "note-type-icon board"}>
                           {note.type === NoteType.Document ? (
@@ -436,34 +444,24 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                         <span className="note-list-copy">
                           <span className="note-list-title-row">
                             <strong>{note.title || "Untitled"}</strong>
+                            <time title={new Date(note.updatedAt).toLocaleString()}>
+                              {relativeDate(note.updatedAt)}
+                            </time>
                           </span>
                           <span className="note-list-preview">{notePreview(note)}</span>
                           <span className="note-list-meta">
                             {favorite && <StarIcon size={11} weight="fill" />}
                             {note.type === NoteType.Document ? "Document" : "Whiteboard"}
-                            {note.sharedWith?.length > 0 && (
+                            {sharedWithUser ? (
+                              <span>
+                                Shared · {permission === "editor" ? "Can edit" : "View only"}
+                              </span>
+                            ) : note.sharedWith?.length > 0 ? (
                               <span>{note.sharedWith.length} shared</span>
-                            )}
+                            ) : null}
                           </span>
                         </span>
                       </button>
-                      <div className="note-list-card-actions">
-                        <time title={new Date(note.updatedAt).toLocaleString()}>
-                          {relativeDate(note.updatedAt)}
-                        </time>
-                        {note.owner === loggedInUser?._id && (
-                          <button
-                            type="button"
-                            className="note-list-quick-delete"
-                            onClick={() => handleDeleteNote(note._id)}
-                            aria-label={`Delete ${note.title || "Untitled"}`}
-                            title="Delete note"
-                          >
-                            <TrashIcon size={15} />
-                          </button>
-                        )}
-                      </div>
-                      </div>
                     );
                   })
                 )}
@@ -471,11 +469,19 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                 {!isLoading && filteredNotes.length === 0 && (
                   <div className="note-list-empty">
                     <MagnifyingGlassIcon size={24} />
-                    <strong>{search ? "No matching notes" : "Nothing here yet"}</strong>
+                    <strong>
+                      {search
+                        ? "No matching notes"
+                        : filter === "shared"
+                          ? "Nothing shared with you"
+                          : "Nothing here yet"}
+                    </strong>
                     <span>
                       {search
                         ? "Try a different word or filter."
-                        : "Create a document or import Markdown."}
+                        : filter === "shared"
+                          ? "Notes others share with you will appear here."
+                          : "Create a document or import Markdown."}
                     </span>
                   </div>
                 )}
@@ -557,15 +563,6 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                           <TrashIcon size={19} />
                         </button>
                       )}
-                      <button
-                        type="button"
-                        className="icon-button desktop-close-note"
-                        onClick={() => closeOrSwitchNote(null)}
-                        title="Close note"
-                        aria-label="Close note"
-                      >
-                        <XIcon size={19} />
-                      </button>
                     </div>
                   </header>
 

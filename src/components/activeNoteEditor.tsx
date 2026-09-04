@@ -332,9 +332,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
         whiteboardBinding.onElementsChange(
           sanitizeNoteboardElements(parsed.elements),
         );
-        whiteboardBinding.onViewportChange(
-          sanitizeNoteboardViewport({ panX, panY, zoom }),
-        );
+        const viewport = sanitizeNoteboardViewport({ panX, panY, zoom });
+        boardRef.current?.setViewport(viewport);
+        whiteboardBinding.onViewportChange(viewport);
         return true;
       } catch {
         return false;
@@ -745,8 +745,16 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
               key={note._id}
               ref={boardRef}
               elements={whiteboardElements}
-              initialViewport={readOnly ? whiteboardBinding.viewport : undefined}
-              viewport={readOnly ? undefined : whiteboardBinding.viewport}
+              initialViewport={
+                readOnly || collaboration.local
+                  ? whiteboardBinding.viewport
+                  : undefined
+              }
+              viewport={
+                !readOnly && !collaboration.local
+                  ? whiteboardBinding.viewport
+                  : undefined
+              }
               onElementsChange={handleWhiteboardChange}
               onViewportChange={readOnly ? undefined : handleViewportChange}
               onThemeChange={setPreference}

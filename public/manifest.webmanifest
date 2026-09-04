@@ -36,12 +36,6 @@
       "short_name": "Notes",
       "url": "/notes",
       "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
-    },
-    {
-      "name": "Shared with me",
-      "short_name": "Shared",
-      "url": "/shared",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

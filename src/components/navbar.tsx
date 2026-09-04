@@ -3,7 +3,6 @@ import {
   GearIcon,
   NotepadIcon,
   SignOutIcon,
-  UsersIcon,
 } from "@phosphor-icons/react";
 import Link from "next/link";
 import Image from "next/image";
@@ -48,9 +47,6 @@ const Navbar: React.FC<Props> = ({ loggedInUser, onLogout }) => {
               </div>
               <Link href="/notes">
                 <NotepadIcon size={17} weight="bold" /> Notes
-              </Link>
-              <Link href="/shared">
-                <UsersIcon size={17} weight="bold" /> Shared
               </Link>
               <Link href="/settings">
                 <GearIcon size={17} weight="bold" /> Settings
