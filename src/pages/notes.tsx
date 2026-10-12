@@ -1,3 +1,4 @@
+import NoteLibrary from "../components/noteLibrary";
 import Head from "next/head";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
@@ -78,6 +79,8 @@ const notePreview = (note: Note) => {
 const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const router = useRouter();
   const [notes, setNotes] = useState<Note[]>([]);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [notebookFilter, setNotebookFilter] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<NoteFilter>("all");
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
@@ -136,7 +139,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (event.key === "/" && !["INPUT", "TEXTAREA"].includes(target.tagName)) {
+      if (event.key === "/" && !event.defaultPrevented && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey && !target.closest("input, textarea, select, [contenteditable], [role=textbox]")) {
         event.preventDefault();
         searchInputRef.current?.focus();
       }
@@ -186,7 +189,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    if (!window.confirm("Permanently delete this note? This cannot be undone.")) {
+    if (!window.confirm("Move this note to trash? You can restore it from Organize and recover. Sharing will be removed.")) {
       return;
     }
     try {
@@ -273,7 +276,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   const filteredNotes = useMemo(() => {
     return notes
-      .filter((note) => noteMatchesSearch(note, search))
+      .filter((note) => noteMatchesSearch(note, search) || (note.tags ?? []).some(tag => tag.includes(search.trim().toLowerCase())) || (note.notebook ?? "").toLowerCase().includes(search.trim().toLowerCase()))
+      .filter(note => !notebookFilter || note.notebook === notebookFilter)
       .filter((note) => {
         if (filter === "shared") return note.owner !== loggedInUser?._id;
         if (filter === "documents") return note.type === NoteType.Document;
@@ -290,7 +294,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           new Date(second.updatedAt).getTime() -
           new Date(first.updatedAt).getTime(),
       );
-  }, [filter, loggedInUser, notes, search]);
+  }, [filter, loggedInUser, notes, search, notebookFilter]);
 
   const activeNote = notes.find((note) => note._id === selectedNoteId) || null;
   const isFavorite =
@@ -340,6 +344,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               </div>
             </div>
             <div className="workspace-actions">
+              <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
               <button
                 type="button"
                 className={noteBrowserOpen ? "note-list-toggle is-active" : "note-list-toggle"}
@@ -365,6 +370,10 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             </div>
           </header>
 
+          {libraryOpen && <NoteLibrary key={isOwner ? activeNote?._id : "trash"} note={isOwner ? activeNote : null}
+            onClose={() => setLibraryOpen(false)}
+            onRecovered={note => { setNotes(current => [note, ...current]); setSelectedNoteId(note._id); setLibraryOpen(false); setSearch(""); setFilter("all"); setNotebookFilter(""); }}
+            onOrganizationChange={saved => { setNotes(current => current.map(note => note._id === saved._id ? { ...note, notebook: saved.notebook, tags: saved.tags } : note)); setLibraryOpen(false); }} />}
           {error && (
             <p className="new-note-dialog-error" role="alert">
               {error}{" "}
@@ -379,6 +388,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           >
             <aside className="note-browser" id="note-browser-panel">
               <div className="note-browser-tools">
+                <label className="notebook-filter">Notebook<select value={notebookFilter} onChange={event => setNotebookFilter(event.target.value)}><option value="">All notebooks</option>{[...new Set(notes.map(note => note.notebook).filter((name): name is string => Boolean(name)))].sort().map(name => <option key={name} value={name}>{name}</option>)}</select></label>
                 <label className="note-search">
                   <MagnifyingGlassIcon size={17} />
                   <input

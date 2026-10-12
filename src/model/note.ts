@@ -18,6 +18,9 @@ export interface Collaborator {
 
 export interface BaseNote {
   _id: string;
+  notebook?: string;
+  tags?: string[];
+  trashedAt?: string;
   title: string;
   owner: string;
   sharedWith: Collaborator[];
@@ -425,7 +428,8 @@ const normalizeNoteboardElement = (
     type === "image" &&
     (typeof value.dataUrl !== "string" ||
       value.dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH ||
-      !/^data:image\/[a-z0-9.+-]+;base64,/i.test(value.dataUrl))
+      !/^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value.dataUrl) ||
+      value.dataUrl.slice(value.dataUrl.indexOf(",") + 1).length % 4 !== 0)
   ) {
     return null;
   }

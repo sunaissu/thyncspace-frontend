@@ -4350,3 +4350,25 @@ html[data-theme="light"] .modal-backdrop {
     grid-template-columns: 96px minmax(0, 1fr);
   }
 }
+
+/* Shared package owns editor layout; fill the note stage without a reading-width cap. */
+.thyncspace-document-editor { flex: 1; width: 100%; min-width: 0; min-height: 0; height: 100%; border: 0; border-radius: 0; }
+
+.note-library { padding: 20px; margin: 0 0 16px; border: 1px solid var(--color-border); border-radius: 12px; max-height: 50vh; overflow-y: auto; overscroll-behavior: contain; }
+.note-library header, .library-row { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+.note-library h2 { font-size: 18px; font-weight: 650; }
+.note-library h3 { font-size: 15px; font-weight: 650; margin: 18px 0 6px; }
+.note-library p { font-size: 13px; margin-bottom: 12px; }
+.note-library form { display: flex; align-items: end; gap: 12px; flex-wrap: wrap; margin-top: 12px; }
+.note-library label { display: grid; gap: 6px; flex: 1; min-width: 160px; font-size: 13px; }
+.note-library input, .notebook-filter select { color: inherit; background: var(--color-surface); padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; min-width: 0; width: 100%; }
+.library-row { padding: 10px 0; border-bottom: 1px solid var(--color-border); font-size: 14px; }
+.library-row span { min-width: 0; overflow-wrap: anywhere; }
+.library-row small { display: block; opacity: .7; }
+.library-row button { flex-shrink: 0; }
+.notebook-filter { display: grid; gap: 4px; font-size: 12px; margin-bottom: 10px; }
+
+.saved-calculation { display: grid; gap: 10px; margin: 14px 0; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); }
+.saved-calculation label { display: grid; gap: 5px; font-size: 12px; }
+.saved-calculation input, .saved-calculation textarea { width: 100%; padding: 8px; border-radius: 6px; background: var(--color-surface); color: inherit; border: 1px solid var(--color-border); }
+.saved-calculation p { overflow-wrap: anywhere; font-size: 13px; }

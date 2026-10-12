@@ -290,3 +290,21 @@ export async function updateUsername(newUsername: string): Promise<User> {
   const body = await response.json();
   return body.user;
 }
+
+export interface NoteVersion { id: string; title: string; savedAt: string }
+export async function fetchTrash(): Promise<Note[]> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/trash")).json();
+}
+export async function fetchNoteHistory(noteId: string): Promise<NoteVersion[]> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/history")).json();
+}
+export async function recoverNote(noteId: string, versionId?: string): Promise<Note> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/recover", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ versionId }),
+  })).json();
+}
+export async function updateNoteOrganization(noteId: string, notebook: string, tags: string[]): Promise<Note> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/organization", {
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notebook, tags }),
+  })).json();
+}

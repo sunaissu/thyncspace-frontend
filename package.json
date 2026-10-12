@@ -11,28 +11,34 @@
     "check": "tsc --noEmit",
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "lint": "eslint . --max-warnings=0"
+    "lint": "eslint . --max-warnings=0",
+    "test": "node --test test/*.test.cjs",
+    "test:browser": "node scripts/browser-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",
     "@phosphor-icons/react": "^2.1.10",
-    "@sunaissu/calculator": "1.0.0",
-    "@sunaissu/document-editor": "1.0.0",
-    "@sunaissu/noteboard": "2.0.1",
-    "next": "16.3.0",
+    "@sunaissu/calculator": "file:vendor/sunaissu-calculator-1.0.0.tgz",
+    "@sunaissu/document-editor": "file:vendor/sunaissu-document-editor-1.0.0.tgz",
+    "@sunaissu/noteboard": "file:vendor/sunaissu-noteboard-2.0.1.tgz",
+    "next": "16.3.8",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "yjs": "^13.6.31"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.0",
     "@types/node": "20.19.43",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "autoprefixer": "10.5.4",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.0",
+    "eslint-config-next": "16.3.8",
     "postcss": "8.5.25",
     "tailwindcss": "3.4.19",
     "typescript": "5.9.3"
+  },
+  "overrides": {
+    "postcss-selector-parser": "7.1.6"
   }
 }

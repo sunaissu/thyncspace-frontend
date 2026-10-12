@@ -1,0 +1,70 @@
+const { chromium, expect } = require('@playwright/test');
+const path = require('node:path');
+const fs = require('node:fs');
+const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
+(async () => {
+  const executablePath = process.env.CHROME_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined);
+  const browser = await chromium.launch({ executablePath, headless: true });
+  try {
+    const page = await browser.newPage({ viewport: { width: 1440, height: 950 } });
+    const errors = [], requests = [];
+    page.on('pageerror', error => errors.push(error.message));
+    const user = { _id: '64b000000000000000000002', username: 'Review user', email: 'review@example.test' };
+    let nextId = 10;
+    let note = { _id: '64b000000000000000000001', owner: user._id, title: 'Review document', type: 'document', content: '# Review\n\nWrite here.', sharedWith: [], favoritedBy: [], createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), notebook: 'Work', tags: ['math'] };
+    await page.route('**/api/**', async route => {
+      const request = route.request(), pathname = new URL(request.url()).pathname;
+      requests.push(request.method() + ' ' + pathname);
+      let body;
+      if (pathname.endsWith('/getUser')) body = { user };
+      else if (pathname.endsWith('/csrf-token')) body = { token: 'fixture-token' };
+      else if (pathname.endsWith('/history')) body = [{ id: '64b000000000000000000005', title: 'Earlier draft', savedAt: new Date().toISOString() }];
+      else if (pathname.endsWith('/trash')) body = [{ ...note, _id: '64b000000000000000000006', title: 'Trashed note' }];
+      else if (pathname.endsWith('/shared')) body = [];
+      else if (pathname.endsWith('/organization')) body = { ...note, ...request.postDataJSON() };
+      else if (pathname.endsWith('/recover')) body = { ...note, _id: String(nextId++).padStart(24, '0'), title: 'Recovered note' };
+      else if (pathname.endsWith('/private')) body = { ...note, content: request.postDataJSON().text ?? note.content };
+      else if (pathname.endsWith('/notes')) body = [note];
+      else body = note;
+      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    });
+    await page.goto(origin + '/notes/', { waitUntil: 'domcontentloaded', timeout: 60000 });
+    const editor = page.getByRole('textbox', { name: 'Visual document editor' });
+    await editor.waitFor({ timeout: 60000 });
+    await editor.click(); await page.keyboard.press('Control+End'); await page.keyboard.type('/'); await expect(editor).toBeFocused();
+    await page.getByRole('button', { name: 'Organize and recover', exact: true }).click();
+    await page.getByLabel('Notebook', { exact: true }).fill('Research');
+    await page.getByLabel('Tags, separated by commas').fill('physics, math');
+    await page.getByRole('button', { name: 'Save organization' }).click();
+    await expect(page.getByRole('combobox', { name: 'Notebook' })).toContainText('Research');
+    await page.getByRole('button', { name: 'Organize and recover', exact: true }).click();
+    await page.getByRole('button', { name: 'Restore copy', exact: true }).click();
+    await expect(editor).toBeVisible();
+    await page.getByRole('button', { name: 'Markdown', exact: true }).click();
+    const fence = String.fromCharCode(96).repeat(3);
+    const result = { version: 1, kind: 'expression', expression: 'a*2', displayExpression: 'a*2', value: '6', numericValue: 6, context: { variables: { a: 3 }, angleUnit: 'rad' } };
+    const source = page.getByRole('textbox', { name: 'Markdown source' });
+    await source.fill(fence + 'thyncspace-calculation\n' + JSON.stringify(result) + '\n' + fence);
+    await page.getByRole('button', { name: 'Calculator', exact: true }).click();
+    await page.getByRole('textbox', { name: 'Expression', exact: true }).first().fill('a*3');
+    await page.getByRole('button', { name: 'Recalculate and save' }).click();
+    await expect(source).toHaveValue(/"numericValue":9/);
+    await page.getByRole('button', { name: 'Calculator', exact: true }).click();
+    await page.getByRole('button', { name: 'Organize and recover', exact: true }).click();
+    await page.getByRole('button', { name: 'Restore note', exact: true }).click();
+    const artifactDir = path.resolve('test/artifacts'); fs.mkdirSync(artifactDir, { recursive: true });
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 950 });
+      await expect(editor).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.screenshot({ path: path.join(artifactDir, 'workspace-' + width + '.png') });
+    }
+    note = { ...note, type: 'whiteboard', content: JSON.stringify({ elements: [], viewport: { panX: 0, panY: 0, zoom: 1 } }), title: 'Review board' };
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.whiteboard-editor-canvas canvas').first()).toBeVisible();
+    expect(errors).toEqual([]);
+    expect(requests.some(request => request.includes('/organization'))).toBe(true);
+    expect(requests.filter(request => request.includes('/recover')).length).toBe(2);
+    console.log('Workspace typing, organization, version/trash recovery, saved calculations, board integration and 320–1440px layouts passed (API fixtures).');
+  } finally { await browser.close(); }
+})().catch(error => { console.error(error); process.exitCode = 1; });

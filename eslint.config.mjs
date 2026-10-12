@@ -12,7 +12,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["*.config.js"],
+    files: ["*.config.js", "test/*.cjs", "scripts/*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },

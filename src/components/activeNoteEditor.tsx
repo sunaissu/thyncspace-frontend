@@ -1,3 +1,5 @@
+import SavedCalculations from "./savedCalculations";
+import { calculationMarkdown } from "../util/savedCalculations";
 import React, {
   useCallback,
   useContext,
@@ -7,23 +9,7 @@ import React, {
   useState,
 } from "react";
 import * as Y from "yjs";
-import {
-  ArrowClockwiseIcon,
-  ArrowCounterClockwiseIcon,
-  CalculatorIcon,
-  CloudSlashIcon,
-  CodeIcon,
-  EyeIcon,
-  LinkIcon,
-  ListBulletsIcon,
-  ListNumbersIcon,
-  PencilSimpleIcon,
-  QuotesIcon,
-  SpinnerBallIcon,
-  TextBIcon,
-  TextHIcon,
-  TextItalicIcon,
-} from "@phosphor-icons/react";
+import { CalculatorIcon, CloudSlashIcon, SpinnerBallIcon } from "@phosphor-icons/react";
 import {
   Noteboard,
   NoteboardRef,
@@ -35,13 +21,8 @@ import {
   DocumentCalculator,
   type CanvasCalculationInsert,
 } from "@sunaissu/calculator";
+import { DocumentEditor, type DocumentEditorHandle } from "@sunaissu/document-editor";
 import {
-  MarkdownRenderer,
-  type RichTextBlockType,
-  type RichTextEditorHandle,
-} from "@sunaissu/document-editor";
-import {
-  YJS_DOCUMENT_TEXT_KEY,
   useYjsDocument,
 } from "@sunaissu/document-editor/yjs";
 import {
@@ -61,8 +42,6 @@ import {
 } from "../context/themeContext";
 import { useNoteCollaboration } from "../hooks/useNoteCollaboration";
 import { usePrivateNoteAutosave } from "../hooks/usePrivateNoteAutosave";
-import LinkEditorDialog from "./linkEditorDialog";
-import RichTextEditor from "./richTextEditor";
 
 interface ActiveNoteEditorProps {
   collaborationEnabled?: boolean;
@@ -72,7 +51,6 @@ interface ActiveNoteEditorProps {
   onSaveStatusChange?: (status: "saving" | "saved" | "idle") => void;
 }
 
-type EditorMode = "visual" | "markdown" | "preview";
 const COLLABORATIVE_TITLE_KEY = "note-title";
 
 const emptyWhiteboard = (): Pick<WhiteboardContent, "elements" | "viewport"> => ({
@@ -92,73 +70,6 @@ interface PendingViewportWrite {
   next: WhiteboardContent["viewport"];
   previous: WhiteboardContent["viewport"];
 }
-
-const useDocumentHistory = (document: Y.Doc, enabled: boolean) => {
-  const managerRef = useRef<Y.UndoManager | null>(null);
-  const [availability, setAvailability] = useState({
-    canRedo: false,
-    canUndo: false,
-  });
-
-  useEffect(() => {
-    if (!enabled) {
-      managerRef.current = null;
-      setAvailability({ canRedo: false, canUndo: false });
-      return;
-    }
-
-    const manager = new Y.UndoManager(
-      document.getText(YJS_DOCUMENT_TEXT_KEY),
-      {
-        // The editor binding uses a plain-object origin. Hocuspocus uses its
-        // provider instance, so collaborators' remote edits stay out of this
-        // user's local undo history.
-        trackedOrigins: new Set([Object]),
-      },
-    );
-    managerRef.current = manager;
-
-    const refreshAvailability = () => {
-      setAvailability({
-        canRedo: manager.canRedo(),
-        canUndo: manager.canUndo(),
-      });
-    };
-
-    manager.on("stack-item-added", refreshAvailability);
-    manager.on("stack-item-popped", refreshAvailability);
-    manager.on("stack-item-updated", refreshAvailability);
-    manager.on("stack-cleared", refreshAvailability);
-    refreshAvailability();
-
-    return () => {
-      manager.off("stack-item-added", refreshAvailability);
-      manager.off("stack-item-popped", refreshAvailability);
-      manager.off("stack-item-updated", refreshAvailability);
-      manager.off("stack-cleared", refreshAvailability);
-      manager.destroy();
-      if (managerRef.current === manager) managerRef.current = null;
-    };
-  }, [document, enabled]);
-
-  const undo = useCallback(() => {
-    const manager = managerRef.current;
-    if (!manager?.canUndo()) return;
-    manager.stopCapturing();
-    manager.undo();
-    manager.stopCapturing();
-  }, []);
-
-  const redo = useCallback(() => {
-    const manager = managerRef.current;
-    if (!manager?.canRedo()) return;
-    manager.stopCapturing();
-    manager.redo();
-    manager.stopCapturing();
-  }, []);
-
-  return { ...availability, redo, undo };
-};
 
 const parseWhiteboard = (
   note: Note,
@@ -214,13 +125,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     [collaboration.document],
   );
   const content = documentBinding.value;
-  const [mode, setMode] = useState<EditorMode>(readOnly ? "preview" : "visual");
-  const editorMode: EditorMode = readOnly ? "preview" : mode;
-  const [visualBlockType, setVisualBlockType] =
-    useState<RichTextBlockType>("p");
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [linkEditorOpen, setLinkEditorOpen] = useState(false);
-  const [linkInitialText, setLinkInitialText] = useState("");
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
   const { setNotes } = useContext(NoteContext);
   const {
@@ -235,8 +140,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   );
 
   const boardRef = useRef<NoteboardRef>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const richEditorRef = useRef<RichTextEditorHandle>(null);
+  const documentEditorRef = useRef<DocumentEditorHandle>(null);
   const initializedLocalWhiteboardRef = useRef<Y.Doc | null>(null);
   const pendingViewportWriteRef = useRef<PendingViewportWrite | null>(null);
 
@@ -366,10 +270,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const editorReady =
     collaboration.ready &&
     (!collaboration.local || (localBindingsReady && privateAutosave.ready));
-  const documentHistory = useDocumentHistory(
-    collaboration.document,
-    editorReady && note.type === NoteType.Document && !readOnly,
-  );
+
 
   useEffect(() => {
     if (!editorReady) return;
@@ -390,9 +291,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   }, [editorReady, note._id, setNotes, titleText]);
 
   const changeDocumentContent = useCallback(
-    (newContent: string) => {
+    (newContent: string, previous?: string) => {
       if (readOnly) return;
-      documentBinding.onChange(newContent);
+      documentBinding.onChange(newContent, previous);
       setNotes((previous) =>
         previous.map((existingNote) =>
           existingNote._id === note._id
@@ -510,63 +411,6 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     whiteboardElements,
   ]);
 
-  const insertMarkdown = useCallback(
-    (prefix: string, suffix = "", placeholder = "text") => {
-      const textarea = textareaRef.current;
-      if (!textarea || readOnly) return;
-      const start = textarea.selectionStart;
-      const end = textarea.selectionEnd;
-      const selection = content.slice(start, end) || placeholder;
-      const nextContent = `${content.slice(0, start)}${prefix}${selection}${suffix}${content.slice(end)}`;
-      changeDocumentContent(nextContent);
-      requestAnimationFrame(() => {
-        textarea.focus();
-        const selectionStart = start + prefix.length;
-        textarea.setSelectionRange(selectionStart, selectionStart + selection.length);
-      });
-    },
-    [changeDocumentContent, content, readOnly],
-  );
-
-  const prefixSelectedLines = useCallback(
-    (prefix: string) => {
-      const textarea = textareaRef.current;
-      if (!textarea || readOnly) return;
-      const selectionStart = textarea.selectionStart;
-      const selectionEnd = textarea.selectionEnd;
-      const lineStart = content.lastIndexOf("\n", selectionStart - 1) + 1;
-      const nextLineBreak = content.indexOf("\n", selectionEnd);
-      const lineEnd = nextLineBreak === -1 ? content.length : nextLineBreak;
-      const selectedLines = content.slice(lineStart, lineEnd);
-      const replacement = selectedLines
-        .split("\n")
-        .map((line) => `${prefix}${line}`)
-        .join("\n");
-      changeDocumentContent(
-        `${content.slice(0, lineStart)}${replacement}${content.slice(lineEnd)}`,
-      );
-      requestAnimationFrame(() => {
-        textarea.focus();
-        textarea.setSelectionRange(lineStart, lineStart + replacement.length);
-      });
-    },
-    [changeDocumentContent, content, readOnly],
-  );
-
-  const insertCalculatorResult = (value: string) => {
-    if (editorMode === "visual" && richEditorRef.current) {
-      richEditorRef.current.insertText(value);
-      return;
-    }
-    const textarea = textareaRef.current;
-    if (textarea && editorMode === "markdown") {
-      insertMarkdown("", "", value);
-      return;
-    }
-    const spacer = content && !content.endsWith("\n") ? "\n\n" : "";
-    changeDocumentContent(`${content}${spacer}**Calculation:** ${value}`);
-  };
-
   const insertCanvasCalculatorResult = useCallback(
     (payload: CanvasCalculationInsert) => {
       if (readOnly) return;
@@ -589,11 +433,6 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     },
     [noteboardBrandColors.primary, readOnly],
   );
-
-  const counts = useMemo(() => {
-    const words = content.trim() ? content.trim().split(/\s+/).length : 0;
-    return { words, characters: content.length };
-  }, [content]);
 
   const privateSaveNotice = privateAutosave.error ? (
     <div className="editor-save-alert" role="alert">
@@ -756,6 +595,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
                   : undefined
               }
               onElementsChange={handleWhiteboardChange}
+              history={whiteboardBinding.history}
               onViewportChange={readOnly ? undefined : handleViewportChange}
               onThemeChange={setPreference}
               readOnly={readOnly}
@@ -776,294 +616,28 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     );
   }
 
-  const applyVisualOrMarkdown = (
-    visualCommand: string,
-    markdownAction: () => void,
-    value?: string,
-  ) => {
-    if (editorMode === "visual") {
-      richEditorRef.current?.applyCommand(visualCommand, value);
-      return;
-    }
-    markdownAction();
-  };
-
-  const openLinkEditor = () => {
-    const selectedText =
-      editorMode === "visual"
-        ? richEditorRef.current?.getSelectedText() || ""
-        : textareaRef.current
-          ? content.slice(
-              textareaRef.current.selectionStart,
-              textareaRef.current.selectionEnd,
-            )
-          : "";
-    setLinkInitialText(selectedText);
-    setLinkEditorOpen(true);
-  };
-
-  const applyLink = (linkText: string, address: string) => {
-    if (editorMode === "visual") {
-      richEditorRef.current?.insertLink(linkText, address);
-      return;
-    }
-
-    const textarea = textareaRef.current;
-    if (!textarea || readOnly) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.slice(start, end);
-    const label = (linkText || selectedText || address).replace(/\]/g, "\\]");
-    const safeAddress = address.replace(/\)/g, "%29");
-    const markdownLink = `[${label}](${safeAddress})`;
-    changeDocumentContent(
-      `${content.slice(0, start)}${markdownLink}${content.slice(end)}`,
-    );
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + markdownLink.length, start + markdownLink.length);
-    });
-  };
-
-  const toolbarItems = [
-    {
-      label: "Heading",
-      icon: TextHIcon,
-      action: () =>
-        applyVisualOrMarkdown("formatBlock", () => prefixSelectedLines("## "), "h2"),
-    },
-    {
-      label: "Bold",
-      icon: TextBIcon,
-      action: () =>
-        applyVisualOrMarkdown("bold", () =>
-          insertMarkdown("**", "**", "bold text"),
-        ),
-    },
-    {
-      label: "Italic",
-      icon: TextItalicIcon,
-      action: () =>
-        applyVisualOrMarkdown("italic", () =>
-          insertMarkdown("_", "_", "italic text"),
-        ),
-    },
-    {
-      label: "Bullet list",
-      icon: ListBulletsIcon,
-      action: () =>
-        applyVisualOrMarkdown("insertUnorderedList", () => prefixSelectedLines("- ")),
-    },
-    {
-      label: "Numbered list",
-      icon: ListNumbersIcon,
-      action: () =>
-        applyVisualOrMarkdown("insertOrderedList", () => prefixSelectedLines("1. ")),
-    },
-    {
-      label: "Quote",
-      icon: QuotesIcon,
-      action: () =>
-        applyVisualOrMarkdown("formatBlock", () => prefixSelectedLines("> "), "blockquote"),
-    },
-    {
-      label: "Code",
-      icon: CodeIcon,
-      action: () =>
-        applyVisualOrMarkdown(
-          "formatBlock",
-          () => insertMarkdown("`", "`", "code"),
-          "pre",
-        ),
-    },
-    { label: "Link", icon: LinkIcon, action: openLinkEditor },
-  ];
-  const visibleToolbarItems =
-    editorMode === "visual" ? toolbarItems.slice(1) : toolbarItems;
-
   return (
     <div className={calculatorOpen ? "document-workspace has-tool-panel" : "document-workspace"}>
       {privateSaveNotice}
-      <div className="document-editor-area">
-        <div className="document-toolbar">
-          <div className="formatting-tools" aria-label="Text formatting">
-            {!readOnly && (
-              <>
-                <button
-                  type="button"
-                  onClick={documentHistory.undo}
-                  disabled={!documentHistory.canUndo}
-                  title="Undo (Ctrl+Z)"
-                  aria-label="Undo"
-                >
-                  <ArrowCounterClockwiseIcon size={17} weight="bold" />
-                </button>
-                <button
-                  type="button"
-                  onClick={documentHistory.redo}
-                  disabled={!documentHistory.canRedo}
-                  title="Redo (Ctrl+Y or Ctrl+Shift+Z)"
-                  aria-label="Redo"
-                >
-                  <ArrowClockwiseIcon size={17} weight="bold" />
-                </button>
-              </>
-            )}
-            {editorMode === "visual" && !readOnly && (
-              <select
-                className="text-style-select"
-                value={visualBlockType}
-                onChange={(event) => {
-                  richEditorRef.current?.applyCommand(
-                    "formatBlock",
-                    event.target.value,
-                  );
-                }}
-                aria-label="Paragraph style"
-                title="Paragraph style"
-              >
-                <option value="p">Normal text</option>
-                <option value="h1">Heading 1</option>
-                <option value="h2">Heading 2</option>
-                <option value="h3">Heading 3</option>
-              </select>
-            )}
-            {visibleToolbarItems.map(({ label, icon: Icon, action }) => (
-              <button
-                type="button"
-                key={label}
-                onClick={action}
-                disabled={readOnly || editorMode === "preview"}
-                title={label}
-                aria-label={label}
-              >
-                <Icon size={17} weight="bold" />
-              </button>
-            ))}
-          </div>
-
-          <div className="editor-view-controls">
-            {!readOnly && (
-              <div className="view-segment" aria-label="Editor view">
-                <button type="button" className={editorMode === "visual" ? "is-active" : ""} onClick={() => setMode("visual")} title="Visual editor">
-                  <PencilSimpleIcon size={16} />
-                  <span>Visual</span>
-                </button>
-                <button type="button" className={editorMode === "markdown" ? "is-active" : ""} onClick={() => setMode("markdown")} title="Markdown source">
-                  <CodeIcon size={16} />
-                  <span>Markdown</span>
-                </button>
-                <button type="button" className={editorMode === "preview" ? "is-active" : ""} onClick={() => setMode("preview")} title="Preview">
-                  <EyeIcon size={16} />
-                  <span>Preview</span>
-                </button>
-              </div>
-            )}
-            <button
-              type="button"
-              className={calculatorOpen ? "tool-toggle is-active" : "tool-toggle"}
-              onClick={() => setCalculatorOpen((open) => !open)}
-              title="Calculator"
-            >
-              <CalculatorIcon size={17} weight="bold" />
-              <span>Calculator</span>
-            </button>
-          </div>
-        </div>
-
-        <div className={`document-canvas mode-${editorMode}`}>
-          {editorMode === "visual" && !readOnly && (
-            <div className="document-write-pane visual-write-pane">
-              <RichTextEditor
-                ref={richEditorRef}
-                content={content}
-                onChange={changeDocumentContent}
-                onBlockTypeChange={setVisualBlockType}
-                onRedo={documentHistory.redo}
-                onUndo={documentHistory.undo}
-                placeholder="Start writing your note…"
-              />
-            </div>
-          )}
-
-          {editorMode === "markdown" && !readOnly && (
-            <div className="document-write-pane">
-              <textarea
-                ref={textareaRef}
-                className="markdown-source"
-                value={content}
-                onChange={(event) => changeDocumentContent(event.target.value)}
-                onKeyDown={(event) => {
-                  const modifier = event.metaKey || event.ctrlKey;
-                  const key = event.key.toLowerCase();
-                  if (modifier && !event.altKey && key === "z") {
-                    event.preventDefault();
-                    if (event.shiftKey) documentHistory.redo();
-                    else documentHistory.undo();
-                    return;
-                  }
-                  if (modifier && !event.altKey && key === "y") {
-                    event.preventDefault();
-                    documentHistory.redo();
-                    return;
-                  }
-                  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "b") {
-                    event.preventDefault();
-                    insertMarkdown("**", "**", "bold text");
-                  }
-                  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "i") {
-                    event.preventDefault();
-                    insertMarkdown("_", "_", "italic text");
-                  }
-                  if (event.key === "Tab") {
-                    event.preventDefault();
-                    insertMarkdown("  ", "", "");
-                  }
-                }}
-                spellCheck
-                placeholder={"Write Markdown here…\n\nUse tags, tasks, code, links, and more."}
-                aria-label="Markdown source"
-              />
-            </div>
-          )}
-
-          {editorMode === "preview" && (
-            <div className="document-preview-pane">
-              <MarkdownRenderer content={content} />
-            </div>
-          )}
-        </div>
-
-        <footer className="document-statusbar">
-          <div>
-            <span>{counts.words} {counts.words === 1 ? "word" : "words"}</span>
-            <span>{counts.characters} characters</span>
-          </div>
-          <div>
-            <span className="obsidian-compatible-dot" />
-            {collaboration.local
-              ? "Stored as portable Markdown · Private"
-              : `Stored as portable Markdown · ${collaboration.peers.length || 1} active`}
-          </div>
-        </footer>
-      </div>
-
-      {calculatorOpen && (
-        <aside className="document-tool-panel">
-          <DocumentCalculator
-            onInsert={(payload) => insertCalculatorResult(payload.text)}
-            readOnly={readOnly}
-          />
-        </aside>
-      )}
-
-      <LinkEditorDialog
-        open={linkEditorOpen}
-        editorMode={editorMode === "markdown" ? "markdown" : "visual"}
-        initialText={linkInitialText}
-        onClose={() => setLinkEditorOpen(false)}
-        onApply={applyLink}
+      <DocumentEditor
+        ref={documentEditorRef}
+        className="thyncspace-document-editor"
+        value={content}
+        onChange={changeDocumentContent}
+        history={documentBinding.history}
+        readOnly={readOnly}
+        theme={resolvedTheme}
+        brandColors={noteboardBrandColors}
+        renderToolbarEnd={() => (
+          <button type="button" className="tool-toggle" aria-pressed={calculatorOpen} onClick={() => setCalculatorOpen(open => !open)}>
+            <CalculatorIcon size={17} /> Calculator
+          </button>
+        )}
       />
+      {calculatorOpen && <aside className="document-tool-panel" aria-label="Calculator">
+        <SavedCalculations content={content} readOnly={readOnly} onChange={changeDocumentContent} />
+        <DocumentCalculator onInsert={payload => documentEditorRef.current?.appendBlock(calculationMarkdown(payload))} readOnly={readOnly} />
+      </aside>}
     </div>
   );
 };
