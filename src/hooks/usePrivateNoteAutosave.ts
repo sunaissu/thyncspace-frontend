@@ -6,11 +6,13 @@ import {
   markPrivateNoteDraftSuperseded,
   type PrivateNoteDraft,
   privateNoteRevisionKey,
-  readPrivateNoteDraft,
+  listPrivateNoteDrafts,
+  migrateLegacyPrivateNoteDraft,
+  privateDraftPrefix,
   writePrivateNoteDraft,
 } from "../util/privateNoteDraft";
 
-type SaveStatus = "saving" | "saved" | "idle";
+type SaveStatus = "saving" | "saved" | "idle" | "error" | "synced";
 
 export interface PrivateDraftNotice {
   kind: "conflict" | "recovered";
@@ -19,7 +21,9 @@ export interface PrivateDraftNotice {
 
 interface PrivateNoteAutosaveOptions {
   enabled: boolean;
+  accountId: string;
   initialRevision: string;
+  initialServerRevision: number;
   noteId: string;
   onDraftRecovered: (value: string) => boolean;
   onSaved: (note: Note) => void;
@@ -46,7 +50,9 @@ const errorMessage = (error: unknown) =>
 
 export function usePrivateNoteAutosave({
   enabled,
+  accountId,
   initialRevision,
+  initialServerRevision,
   noteId,
   onDraftRecovered,
   onSaved,
@@ -54,6 +60,9 @@ export function usePrivateNoteAutosave({
   revision,
   value,
 }: PrivateNoteAutosaveOptions) {
+  const [sessionId] = useState(() => globalThis.crypto.randomUUID());
+  const storageId = privateDraftPrefix(accountId, noteId) + sessionId;
+  const [availableDrafts, setAvailableDrafts] = useState<PrivateNoteDraft[]>([]);
   const [draftNotice, setDraftNotice] = useState<PrivateDraftNotice | null>(
     null,
   );
@@ -61,13 +70,17 @@ export function usePrivateNoteAutosave({
   const [draftResumeVersion, setDraftResumeVersion] = useState(0);
   const [draftStored, setDraftStored] = useState(false);
   const [error, setError] = useState("");
+  const [conflictServer, setConflictServer] = useState<Note | null>(null);
+  const [conflictValue, setConflictValue] = useState("");
   const conflictingDraft = useRef<PrivateNoteDraft | null>(null);
   const draftBaseRevisionKey = useRef("");
+  const restoredDraft = useRef<PrivateNoteDraft | null>(null);
   const draftQueue = useRef<Promise<void>>(Promise.resolve());
   const draftReadyRef = useRef(false);
   const draftTimer = useRef<number | null>(null);
   const latest = useRef<SaveSnapshot>({ revision, value });
   const lastSavedRevision = useRef(initialRevision);
+  const serverRevision = useRef(initialServerRevision);
   const saveTimer = useRef<number | null>(null);
   const saveQueue = useRef(Promise.resolve());
   const mounted = useRef(true);
@@ -92,7 +105,7 @@ export function usePrivateNoteAutosave({
             stored = await writePrivateNoteDraft({
               baseRevisionKey,
               contentRevisionKey,
-              noteId,
+              noteId: storageId,
               updatedAt: new Date().toISOString(),
               value: snapshot.value,
             });
@@ -112,7 +125,7 @@ export function usePrivateNoteAutosave({
       );
       return operation;
     },
-    [noteId],
+    [storageId],
   );
 
   const queueDraftDelete = useCallback(
@@ -121,7 +134,7 @@ export function usePrivateNoteAutosave({
         if (!contentRevisionKey) return false;
         try {
           const deleted = await deletePrivateNoteDraftIfContentRevision(
-            noteId,
+            storageId,
             contentRevisionKey,
           );
           if (
@@ -143,7 +156,7 @@ export function usePrivateNoteAutosave({
       );
       return operation;
     },
-    [noteId],
+    [storageId],
   );
 
   const queueDraftSupersededMarker = useCallback(
@@ -151,7 +164,7 @@ export function usePrivateNoteAutosave({
       const operation = draftQueue.current.then(async () => {
         if (!serverRevisionKey) return;
         try {
-          await markPrivateNoteDraftSuperseded(noteId, serverRevisionKey);
+          await markPrivateNoteDraftSuperseded(storageId, serverRevisionKey);
         } catch {
           // Remote autosave remains available if browser storage is unavailable.
         }
@@ -162,7 +175,7 @@ export function usePrivateNoteAutosave({
       );
       return operation;
     },
-    [noteId],
+    [storageId],
   );
 
   const applyDraft = useCallback((draft: PrivateNoteDraft) => {
@@ -174,6 +187,7 @@ export function usePrivateNoteAutosave({
     }
 
     if (!recovered) {
+      setConflictValue(draft.value);
       conflictingDraft.current = draft;
       setDraftNotice({
         kind: "conflict",
@@ -210,32 +224,22 @@ export function usePrivateNoteAutosave({
         if (cancelled) return;
         draftBaseRevisionKey.current = serverRevisionKey;
 
-        const draft = await readPrivateNoteDraft(noteId);
+        await migrateLegacyPrivateNoteDraft(accountId, noteId).catch(() => undefined);
+        const drafts = await listPrivateNoteDrafts(accountId, noteId);
+        if (cancelled) return;
+        await Promise.all(drafts.filter(item => item.contentRevisionKey === serverRevisionKey).map(item => deletePrivateNoteDraftIfContentRevision(item.noteId, serverRevisionKey).catch(() => false)));
+        if (cancelled) return;
+        setAvailableDrafts(drafts.filter(item => item.contentRevisionKey !== serverRevisionKey));
+        const draft = drafts.find(item => item.contentRevisionKey !== serverRevisionKey);
         if (cancelled || !draft) return;
         setDraftStored(true);
 
-        if (draft.contentRevisionKey === serverRevisionKey) {
-          await deletePrivateNoteDraftIfContentRevision(
-            noteId,
-            serverRevisionKey,
-          );
-          if (!cancelled) setDraftStored(false);
-          return;
-        }
-
-        const canRecoverAutomatically =
-          draft.baseRevisionKey === serverRevisionKey &&
-          draft.supersededByRevisionKey !== serverRevisionKey;
-        if (canRecoverAutomatically) {
-          applyDraft(draft);
-          return;
-        }
-
+        setConflictValue(draft.value);
         conflictingDraft.current = draft;
         setDraftNotice({
           kind: "conflict",
           message:
-            "The server note changed after this browser draft was created. Review before replacing the current version.",
+            "This browser has a retained draft from another editing session. Compare it with the current server version before restoring.",
         });
       } catch {
         // Remote autosave remains available if IndexedDB is disabled or full.
@@ -250,7 +254,7 @@ export function usePrivateNoteAutosave({
     return () => {
       cancelled = true;
     };
-  }, [applyDraft, enabled, initialRevision, noteId]);
+  }, [applyDraft, enabled, initialRevision, noteId, accountId]);
 
   const queueLatestSave = useCallback(
     (reportResult = true) => {
@@ -278,9 +282,16 @@ export function usePrivateNoteAutosave({
         try {
           const updatedNote = await NotesApi.updatePrivateNote(noteId, {
             text: snapshot.value,
+            expectedRevision: serverRevision.current,
           });
+          serverRevision.current = updatedNote.contentRevision ?? serverRevision.current;
           lastSavedRevision.current = snapshot.revision;
           draftBaseRevisionKey.current = localDraft.contentRevisionKey;
+          const recovered = restoredDraft.current;
+          if (recovered) {
+            await deletePrivateNoteDraftIfContentRevision(recovered.noteId, recovered.contentRevisionKey).catch(() => false);
+            if (restoredDraft.current === recovered) restoredDraft.current = null;
+          }
 
           if (latest.current.revision === snapshot.revision) {
             await queueDraftDelete(localDraft.contentRevisionKey);
@@ -305,14 +316,27 @@ export function usePrivateNoteAutosave({
             );
           }
         } catch (saveError) {
+          if (saveError instanceof NotesApi.ApiError && saveError.status === 409 && mounted.current) {
+            try {
+              const server = await NotesApi.fetchNote(noteId);
+              const local = { ...latest.current };
+              const revisionKey = await privateNoteRevisionKey(local.revision);
+              if (mounted.current) {
+                setConflictServer(server);
+                setConflictValue(local.value);
+                conflictingDraft.current = { noteId: storageId, value: local.value, baseRevisionKey: draftBaseRevisionKey.current, contentRevisionKey: revisionKey, updatedAt: new Date().toISOString() };
+                setDraftNotice({ kind: "conflict", message: "Another session saved a newer version. Compare both copies before choosing; either copy can be downloaded." });
+              }
+            } catch { /* Keep the local draft and allow another recovery attempt. */ }
+          }
           if (reportResult && mounted.current) {
             setError(errorMessage(saveError));
-            onStatusChangeRef.current?.("idle");
+            onStatusChangeRef.current?.("error");
           }
         }
       });
     },
-    [enabled, noteId, queueDraftDelete, queueDraftWrite],
+    [enabled, noteId, storageId, queueDraftDelete, queueDraftWrite],
   );
 
   useEffect(() => {
@@ -325,7 +349,7 @@ export function usePrivateNoteAutosave({
         window.clearTimeout(draftTimer.current);
         draftTimer.current = null;
       }
-      onStatusChangeRef.current?.("idle");
+      onStatusChangeRef.current?.("error");
       return;
     }
 
@@ -386,10 +410,17 @@ export function usePrivateNoteAutosave({
         void queueDraftWrite(latest.current, draftBaseRevisionKey.current);
       }
     };
+    const warnBeforeExit = (event: BeforeUnloadEvent) => {
+      if (enabled && (conflictingDraft.current || latest.current.revision !== lastSavedRevision.current)) {
+        event.preventDefault(); event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warnBeforeExit);
     window.addEventListener("pagehide", persistBeforePageExit);
 
     return () => {
       window.removeEventListener("pagehide", persistBeforePageExit);
+      window.removeEventListener("beforeunload", warnBeforeExit);
       mounted.current = false;
       if (saveTimer.current !== null) {
         window.clearTimeout(saveTimer.current);
@@ -416,25 +447,44 @@ export function usePrivateNoteAutosave({
   }, [queueLatestSave]);
 
   const restoreConflictingDraft = useCallback(() => {
+    setError("");
     const draft = conflictingDraft.current;
+    if (conflictServer) serverRevision.current = conflictServer.contentRevision ?? 0;
     if (draft && applyDraft(draft)) {
+      restoredDraft.current = draft;
       setDraftResumeVersion((version) => version + 1);
     }
-  }, [applyDraft]);
+  }, [applyDraft, conflictServer]);
 
   const dismissDraftNotice = useCallback(() => {
+    setError("");
     const draft = conflictingDraft.current;
     if (draft) {
+      if (conflictServer) {
+        const serverValue = typeof conflictServer.content === "string" ? conflictServer.content : JSON.stringify(conflictServer.content);
+        if (!onDraftRecoveredRef.current(serverValue)) return;
+        serverRevision.current = conflictServer.contentRevision ?? 0;
+        // The resulting editor revision may normalize board JSON; a harmless save confirms it.
+        lastSavedRevision.current = serverValue;
+        onSavedRef.current(conflictServer);
+      }
       conflictingDraft.current = null;
       setDraftStored(false);
-      void queueDraftDelete(draft.contentRevisionKey);
+      void deletePrivateNoteDraftIfContentRevision(draft.noteId, draft.contentRevisionKey).catch(() => false);
       setDraftResumeVersion((version) => version + 1);
     }
     setDraftNotice(null);
-  }, [queueDraftDelete]);
+  }, [conflictServer]);
 
   return {
     dismissDraftNotice,
+    availableDrafts,
+    selectDraft: (id: string) => {
+      const draft = availableDrafts.find(item => item.noteId === id);
+      if (draft) { conflictingDraft.current = draft; setConflictValue(draft.value); }
+    },
+    conflictValue,
+    conflictServer,
     draftNotice,
     draftStored,
     error,

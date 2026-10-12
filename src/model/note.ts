@@ -18,7 +18,9 @@ export interface Collaborator {
 
 export interface BaseNote {
   _id: string;
+  contentRevision?: number;
   notebook?: string;
+  sourcePath?: string;
   tags?: string[];
   trashedAt?: string;
   title: string;

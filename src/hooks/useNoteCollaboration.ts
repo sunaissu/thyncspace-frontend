@@ -1,8 +1,11 @@
+import { parsePresence, type PresencePosition } from "../util/presence";
 import { HocuspocusProvider, WebSocketStatus } from "@hocuspocus/provider";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
 import { User } from "../model/user";
 import * as NotesApi from "../util/fetch";
+import { useLiveDraft } from "./useLiveDraft";
+import { useDurableStore } from "./useDurableStore";
 import env from "../util/config";
 
 export type CollaborationStatus =
@@ -16,6 +19,8 @@ export type CollaborationStatus =
 export interface CollaborationPeer {
   color?: string;
   id: string;
+  sessionId: number;
+  cursor?: PresencePosition | null;
   name: string;
 }
 
@@ -59,11 +64,17 @@ export function useNoteCollaboration(
   noteId: string,
   user?: User | null,
   enabled = true,
+  canEdit = true,
+  noteType = "document",
 ) {
   const document = useMemo(
     () => new Y.Doc({ guid: enabled ? noteId : `${noteId}:private` }),
     [enabled, noteId],
   );
+  const { durability, receiveReceipt } = useDurableStore(document, noteType);
+  const liveDraft = useLiveDraft(document, user?._id, noteId, enabled && canEdit, durability === "stored");
+  const persistLiveDraft = liveDraft.persist;
+  const liveDraftReady = liveDraft.ready;
   const lifecycle = useMemo<DocumentLifecycle>(
     () => ({
       destroyScheduled: false,
@@ -74,9 +85,38 @@ export function useNoteCollaboration(
     }),
     [document],
   );
+  const userId = user?._id;
+  const username = user?.username;
+  const providerRef = useRef<HocuspocusProvider | null>(null);
+  const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCursor = useRef<PresencePosition | null>(null);
+  const publishCursor = useCallback((position: PresencePosition | null) => {
+    const previous = pendingCursor.current;
+    pendingCursor.current = parsePresence(position);
+    if (!position) { if (cursorTimer.current !== null) clearTimeout(cursorTimer.current); cursorTimer.current = null; if (previous) providerRef.current?.setAwarenessField("cursor", null); return; }
+    if (cursorTimer.current !== null) return;
+    cursorTimer.current = setTimeout(() => { cursorTimer.current = null; providerRef.current?.setAwarenessField("cursor", pendingCursor.current); }, 40);
+  }, []);
+  useEffect(() => () => { if (cursorTimer.current !== null) clearTimeout(cursorTimer.current); }, []);
+  const handleStateless = useCallback((data: { payload: string }) => {
+    receiveReceipt(data);
+    if (data.payload.length > 512) return;
+    try {
+      const identity = JSON.parse(data.payload);
+      if (identity.type === "presence-identity" && identity.id === userId && identity.clientId === document.clientID && typeof identity.name === "string" && /^#[0-9a-f]{6}$/i.test(identity.color)) {
+        providerRef.current?.setAwarenessField("user", { id: userId, name: identity.name.slice(0, 80), color: identity.color });
+      }
+    } catch { /* Ignore unrelated or malformed ephemeral messages. */ }
+  }, [receiveReceipt, userId, document]);
+  const usernameRef = useRef(username);
+  useEffect(() => {
+    usernameRef.current = username;
+    if (userId && providerRef.current) providerRef.current.setAwarenessField("user", { id: userId, name: username, color: providerRef.current.awareness?.getLocalState()?.user?.color ?? colorForUser(userId) });
+  }, [username, userId]);
   const [status, setStatus] = useState<CollaborationStatus>(
     enabled ? "connecting" : "local",
   );
+  const hasSynced = useRef(false);
   const [ready, setReady] = useState(!enabled);
   const [peers, setPeers] = useState<CollaborationPeer[]>([]);
   const [unsyncedChanges, setUnsyncedChanges] = useState(0);
@@ -97,6 +137,8 @@ export function useNoteCollaboration(
       return;
     }
 
+    if (!liveDraftReady) return;
+
     // A retry replaces an earlier provider for the same live Y.Doc. Its full
     // state is still present in the document, so the replacement can sync it.
     lifecycle.providers.forEach((dispose) => dispose());
@@ -104,7 +146,7 @@ export function useNoteCollaboration(
     let active = true;
     let synchronized = false;
     let failed = false;
-    setReady(false);
+    setReady(hasSynced.current);
     setStatus("connecting");
     setErrorMessage("");
     const connectionTimeout = window.setTimeout(() => {
@@ -120,24 +162,26 @@ export function useNoteCollaboration(
       document,
       token: () => NotesApi.getCollaborationToken(noteId),
       flushDelay: 80,
+      onStateless: handleStateless,
       onStatus: ({ status: websocketStatus }) => {
         if (!active || failed) return;
         if (websocketStatus === WebSocketStatus.Connected) {
           setStatus("connected");
         } else if (websocketStatus === WebSocketStatus.Connecting) {
-          setReady(false);
+          if (!hasSynced.current) setReady(false);
           setStatus("connecting");
         } else {
           // Do not leave an apparently editable note on screen while updates
           // are only queued in memory. Leaving during that state would destroy
           // the provider and could discard those queued document/canvas edits.
-          setReady(false);
+          if (!hasSynced.current) setReady(false);
           setStatus("disconnected");
         }
       },
       onSynced: ({ state }) => {
         if (active && state) {
           synchronized = true;
+          hasSynced.current = true;
           failed = false;
           window.clearTimeout(connectionTimeout);
           setReady(true);
@@ -164,19 +208,14 @@ export function useNoteCollaboration(
         const next = new Map<string, CollaborationPeer>();
         states.forEach((state) => {
           const awarenessUser = state.user as CollaborationPeer | undefined;
-          if (awarenessUser?.id) next.set(awarenessUser.id, awarenessUser);
+          if (awarenessUser?.id && typeof awarenessUser.name === "string" && Number.isSafeInteger(state.clientId)) next.set(String(state.clientId), { id: awarenessUser.id, name: awarenessUser.name.slice(0, 80), color: typeof awarenessUser.color === "string" && /^#[0-9a-f]{6}$/i.test(awarenessUser.color) ? awarenessUser.color : "#2563eb", sessionId: state.clientId, cursor: parsePresence(state.cursor) });
         });
         setPeers(Array.from(next.values()));
       },
     });
 
-    if (user) {
-      provider.setAwarenessField("user", {
-        id: user._id,
-        name: user.username,
-        color: colorForUser(user._id),
-      });
-    }
+    providerRef.current = provider;
+    if (userId) provider.setAwarenessField("user", { id: userId, name: usernameRef.current, color: colorForUser(userId) });
 
     let finalized = false;
     let waitForSync: ((data: { number: number }) => void) | undefined;
@@ -185,6 +224,7 @@ export function useNoteCollaboration(
       finalized = true;
       if (waitForSync) provider.off("unsyncedChanges", waitForSync);
       lifecycle.providers.delete(provider);
+      if (providerRef.current === provider) providerRef.current = null;
       provider.destroy();
       scheduleDocumentDisposal(lifecycle);
     };
@@ -198,7 +238,7 @@ export function useNoteCollaboration(
       // Before the first successful sync the editor was never writable, so
       // retaining that provider cannot preserve a user edit and only leaks a
       // reconnect loop after authentication or connection failures.
-      if (!synchronized || !provider.hasUnsyncedChanges) {
+      if (!synchronized) {
         finalizeProvider();
         return;
       }
@@ -207,11 +247,13 @@ export function useNoteCollaboration(
       // acknowledged its queued updates. It then tears itself and the Y.Doc
       // down without keeping the editor component mounted.
       waitForSync = ({ number }) => {
-        if (number === 0) finalizeProvider();
+        if (number === 0) void persistLiveDraft().then(stored => { if (stored) finalizeProvider(); });
       };
       provider.on("unsyncedChanges", waitForSync);
+      // Once a durable browser copy exists, the retired provider can stop.
+      void persistLiveDraft().then(stored => { if (stored) finalizeProvider(); });
     };
-  }, [connectionAttempt, document, enabled, lifecycle, noteId, user]);
+  }, [connectionAttempt, document, enabled, lifecycle, noteId, userId, handleStateless, liveDraftReady, persistLiveDraft]);
 
   useEffect(() => {
     lifecycle.retired.clear();
@@ -222,17 +264,21 @@ export function useNoteCollaboration(
   }, [lifecycle]);
 
   useEffect(() => {
-    if (!enabled || unsyncedChanges === 0) return;
+    if (!enabled || !canEdit || (unsyncedChanges === 0 && durability === "stored")) return;
     const warnBeforeExit = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warnBeforeExit);
     return () => window.removeEventListener("beforeunload", warnBeforeExit);
-  }, [enabled, unsyncedChanges]);
+  }, [enabled, canEdit, unsyncedChanges, durability]);
 
   return {
     document,
+    clientId: document.clientID,
+    publishCursor,
+    durability,
+    draftError: liveDraft.error,
     errorMessage,
     local: !enabled,
     peers,

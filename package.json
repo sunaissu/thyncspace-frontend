@@ -13,7 +13,10 @@
     "build": "next build --webpack",
     "lint": "eslint . --max-warnings=0",
     "test": "node --test test/*.test.cjs",
-    "test:browser": "node scripts/browser-review.cjs"
+    "test:browser": "node scripts/browser-review.cjs",
+    "test:recovery": "node scripts/recovery-review.cjs",
+    "test:live": "node scripts/live-review.cjs",
+    "test:presence": "node scripts/presence-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",
@@ -28,15 +31,21 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.64.0",
+    "@tailwindcss/postcss": "4.3.3",
     "@types/node": "20.19.43",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
-    "autoprefixer": "10.5.4",
     "eslint": "9.39.5",
-    "eslint-config-next": "16.3.8",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "fake-indexeddb": "^6.2.5",
+    "globals": "14.0.0",
     "postcss": "8.5.25",
-    "tailwindcss": "3.4.19",
-    "typescript": "5.9.3"
+    "tailwindcss": "4.3.3",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.69.0"
   },
   "overrides": {
     "postcss-selector-parser": "7.1.6"

@@ -179,6 +179,7 @@ export async function toggleFavoriteNote(noteId: string): Promise<Note> {
 }
 
 export interface NoteInput {
+  expectedRevision?: number;
   title?: string;
   text?: string;
   type?: string;
@@ -194,7 +195,7 @@ export async function createNotes(note: NoteInput): Promise<Note> {
 }
 
 export async function importNotes(
-  notes: Array<{ title: string; text: string }>,
+  notes: Array<{ title: string; text: string; sourcePath?: string }>,
 ): Promise<Note[]> {
   const response = await fetchData(`${env.SERVER_URL}/api/notes/import`, {
     method: "POST",
@@ -257,7 +258,7 @@ export async function shareNote(
   noteId: string,
   identifier: string,
   permission: "viewer" | "editor",
-  snapshot?: { text: string },
+  snapshot?: { text: string; expectedRevision: number },
 ): Promise<CollaboratorDetails> {
   const response = await fetchData(
     `${env.SERVER_URL}/api/notes/${noteId}/collaborators`,
@@ -291,7 +292,7 @@ export async function updateUsername(newUsername: string): Promise<User> {
   return body.user;
 }
 
-export interface NoteVersion { id: string; title: string; savedAt: string }
+export interface NoteVersion { label?: string; id: string; title: string; savedAt: string }
 export async function fetchTrash(): Promise<Note[]> {
   return (await fetchData(env.SERVER_URL + "/api/notes/trash")).json();
 }
@@ -307,4 +308,14 @@ export async function updateNoteOrganization(noteId: string, notebook: string, t
   return (await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/organization", {
     method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notebook, tags }),
   })).json();
+}
+
+export async function fetchNoteVersion(noteId: string, versionId: string): Promise<NoteVersion & { content: string; type: string }> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/history/" + versionId)).json();
+}
+export async function renameNoteVersion(noteId: string, versionId: string, label: string): Promise<void> {
+  await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/history/" + versionId, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label }) });
+}
+export async function permanentlyDeleteNote(noteId: string): Promise<void> {
+  await fetchData(env.SERVER_URL + "/api/notes/trash/" + noteId, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: noteId }) });
 }

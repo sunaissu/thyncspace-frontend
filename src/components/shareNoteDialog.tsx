@@ -72,13 +72,13 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
     onCollaboratorsChange(next);
   };
 
-  const currentSnapshot = (): { text: string } => {
+  const currentSnapshot = (): { text: string; expectedRevision: number } => {
     const text = note.type === NoteType.Document
       ? note.content
       : typeof note.content === "string"
         ? note.content
         : JSON.stringify(note.content);
-    return { text };
+    return { text, expectedRevision: note.contentRevision ?? 0 };
   };
 
   const addCollaborator = async (event: FormEvent) => {

@@ -86,7 +86,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitchingNote, setIsSwitchingNote] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">(
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "synced">(
     "idle",
   );
   const [newNoteDialogOpen, setNewNoteDialogOpen] = useState(false);
@@ -98,6 +98,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   useEffect(() => {
     if (!router.isReady) return;
+    let cancelled = false;
     const requestedNoteId =
       typeof router.query.noteId === "string" ? router.query.noteId : null;
     async function loadNotes() {
@@ -116,6 +117,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           const requestedNote = await NotesApi.fetchNote(requestedNoteId);
           availableNotes = [requestedNote, ...fetchedNotes];
         }
+        if (cancelled) return;
         const sharedOnly = router.query.filter === "shared";
         setNotes(availableNotes);
         setFilter(sharedOnly ? "shared" : "all");
@@ -125,15 +127,17 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             null,
         );
       } catch (error) {
+        if (cancelled) return;
         console.error(error);
         setError(
           error instanceof Error ? error.message : "Could not load notes.",
         );
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setIsLoading(false);
       }
     }
-    loadNotes();
+    void loadNotes();
+    return () => { cancelled = true; };
   }, [router.isReady, router.query.filter, router.query.noteId]);
 
   useEffect(() => {
@@ -178,6 +182,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
       importedNotes.map((importedNote) => ({
         title: importedNote.title,
         text: importedNote.content,
+        sourcePath: importedNote.sourcePath,
       })),
     );
     setNotes((currentNotes) => [...createdNotes, ...currentNotes]);
@@ -537,7 +542,9 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                             <CheckIcon size={12} weight="bold" /> Saved
                           </span>
                         )}
-                        {saveStatus === "idle" && <span>Autosaved</span>}
+                        {saveStatus === "idle" && <span>Waiting to sync</span>}
+                        {saveStatus === "error" && <span role="status">Unsaved changes</span>}
+                        {saveStatus === "synced" && <span title="Received by the live service; database storage is pending confirmation">Synced</span>}
                       </div>
                     </div>
 

@@ -1,5 +1,4 @@
-import SavedCalculations from "./savedCalculations";
-import { calculationMarkdown } from "../util/savedCalculations";
+import CollaborationPresence from "./collaborationPresence";
 import React, {
   useCallback,
   useContext,
@@ -13,14 +12,9 @@ import { CalculatorIcon, CloudSlashIcon, SpinnerBallIcon } from "@phosphor-icons
 import {
   Noteboard,
   NoteboardRef,
-  createTextElement,
 } from "@sunaissu/noteboard";
 import { useYjsNoteboard } from "@sunaissu/noteboard/yjs";
-import {
-  CanvasCalculator,
-  DocumentCalculator,
-  type CanvasCalculationInsert,
-} from "@sunaissu/calculator";
+import { Calculator } from "@sunaissu/calculator";
 import { DocumentEditor, type DocumentEditorHandle } from "@sunaissu/document-editor";
 import {
   useYjsDocument,
@@ -48,28 +42,24 @@ interface ActiveNoteEditorProps {
   note: Note;
   readOnly?: boolean;
   user?: User | null;
-  onSaveStatusChange?: (status: "saving" | "saved" | "idle") => void;
+  onSaveStatusChange?: (status: "saving" | "saved" | "idle" | "error" | "synced") => void;
 }
 
 const COLLABORATIVE_TITLE_KEY = "note-title";
+
+const downloadDraft = (value: string, name: string) => {
+  const url = URL.createObjectURL(new Blob([value], { type: "text/plain;charset=utf-8" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
 
 const emptyWhiteboard = (): Pick<WhiteboardContent, "elements" | "viewport"> => ({
   elements: [],
   viewport: { panX: 0, panY: 0, zoom: 1 },
 });
-
-const viewportsEqual = (
-  left: WhiteboardContent["viewport"],
-  right: WhiteboardContent["viewport"],
-) =>
-  left.panX === right.panX &&
-  left.panY === right.panY &&
-  left.zoom === right.zoom;
-
-interface PendingViewportWrite {
-  next: WhiteboardContent["viewport"];
-  previous: WhiteboardContent["viewport"];
-}
 
 const parseWhiteboard = (
   note: Note,
@@ -96,7 +86,7 @@ const parseWhiteboard = (
 const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   collaborationEnabled = true,
   note,
-  readOnly,
+  readOnly: requestedReadOnly,
   user,
   onSaveStatusChange,
 }) => {
@@ -104,7 +94,10 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     note._id,
     user,
     collaborationEnabled,
+    !requestedReadOnly,
+    note.type,
   );
+  const readOnly = requestedReadOnly || (!collaboration.local && collaboration.status !== "synced");
   const [initialDocumentContent] = useState(() =>
     note.type === NoteType.Document ? note.content : "",
   );
@@ -125,6 +118,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     [collaboration.document],
   );
   const content = documentBinding.value;
+  const [admissionError, setAdmissionError] = useState("");
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
   const { setNotes } = useContext(NoteContext);
@@ -142,11 +136,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const boardRef = useRef<NoteboardRef>(null);
   const documentEditorRef = useRef<DocumentEditorHandle>(null);
   const initializedLocalWhiteboardRef = useRef<Y.Doc | null>(null);
-  const pendingViewportWriteRef = useRef<PendingViewportWrite | null>(null);
 
-  useEffect(() => {
-    pendingViewportWriteRef.current = null;
-  }, [collaboration.document]);
 
   useEffect(() => {
     if (!collaboration.local) return;
@@ -180,7 +170,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       viewport: whiteboardBinding.viewport,
     };
     return {
-      revision: JSON.stringify(snapshot),
+      revision: JSON.stringify({ elements: whiteboardElements }),
       value: JSON.stringify({
         version: 1,
         ...snapshot,
@@ -197,7 +187,6 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     () =>
       JSON.stringify({
         elements: initialWhiteboard.elements,
-        viewport: initialWhiteboard.viewport,
       }),
     [initialWhiteboard],
   );
@@ -250,7 +239,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       setNotes((previous) =>
         previous.map((existingNote) =>
           existingNote._id === note._id
-            ? { ...existingNote, updatedAt: savedNote.updatedAt }
+            ? { ...existingNote, updatedAt: savedNote.updatedAt, contentRevision: savedNote.contentRevision }
             : existingNote,
         ),
       );
@@ -259,7 +248,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   );
   const privateAutosave = usePrivateNoteAutosave({
     enabled: collaboration.local && localBindingsReady && !readOnly,
+    accountId: user?._id ?? note.owner,
     initialRevision: initialPrivateRevision,
+    initialServerRevision: note.contentRevision ?? 0,
     noteId: note._id,
     onDraftRecovered: recoverPrivateDraft,
     onSaved: handlePrivateSaved,
@@ -293,6 +284,8 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const changeDocumentContent = useCallback(
     (newContent: string, previous?: string) => {
       if (readOnly) return;
+      if (new TextEncoder().encode(newContent).length > 1024 * 1024) { setAdmissionError("This note exceeds the 1 MiB storage limit. Shorten the content before adding more."); return; }
+      setAdmissionError("");
       documentBinding.onChange(newContent, previous);
       setNotes((previous) =>
         previous.map((existingNote) =>
@@ -324,11 +317,14 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
 
   useEffect(() => {
     if (collaboration.local) return;
-    if (collaboration.unsyncedChanges > 0) onSaveStatusChange?.("saving");
-    else if (collaboration.status === "synced") onSaveStatusChange?.("saved");
+    if (collaboration.durability === "error") onSaveStatusChange?.("error");
+    else if (collaboration.unsyncedChanges > 0) onSaveStatusChange?.("saving");
+    else if (collaboration.durability === "stored") onSaveStatusChange?.("saved");
+    else if (collaboration.status === "synced") onSaveStatusChange?.("synced");
     else onSaveStatusChange?.("idle");
   }, [
     collaboration.local,
+    collaboration.durability,
     collaboration.status,
     collaboration.unsyncedChanges,
     onSaveStatusChange,
@@ -339,41 +335,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     whiteboardBinding.onElementsChange(sanitizeNoteboardElements(elements));
   }, [readOnly, whiteboardBinding]);
 
-  const handleViewportChange = useCallback(
-    (viewport: Parameters<typeof whiteboardBinding.onViewportChange>[0]) => {
-      const nextViewport = sanitizeNoteboardViewport(viewport);
-      if (
-        viewportsEqual(nextViewport, whiteboardBinding.viewport) ||
-        (pendingViewportWriteRef.current !== null &&
-          viewportsEqual(nextViewport, pendingViewportWriteRef.current.next))
-      ) {
-        return;
-      }
-
-      // Noteboard 2.0 can report a controlled viewport after applying it.
-      // Suppress both that external echo and duplicate events emitted before
-      // the Yjs binding has rendered its updated snapshot.
-      pendingViewportWriteRef.current = {
-        next: nextViewport,
-        previous: whiteboardBinding.viewport,
-      };
-      whiteboardBinding.onViewportChange(nextViewport);
-    },
-    [whiteboardBinding],
-  );
-
-  useEffect(() => {
-    const pending = pendingViewportWriteRef.current;
-    if (
-      pending !== null &&
-      !viewportsEqual(pending.previous, whiteboardBinding.viewport)
-    ) {
-      // The binding either acknowledged this write or a remote transaction
-      // superseded it. In both cases a future gesture may legitimately revisit
-      // the same viewport and must no longer be treated as a duplicate.
-      pendingViewportWriteRef.current = null;
-    }
-  }, [whiteboardBinding.viewport]);
+  const handleViewportChange = useCallback((viewport: WhiteboardContent["viewport"]) => {
+    if (collaboration.local) whiteboardBinding.onViewportChange(sanitizeNoteboardViewport(viewport));
+  }, [collaboration.local, whiteboardBinding]);
 
   useEffect(() => {
     if (!editorReady || note.type !== NoteType.Whiteboard) return;
@@ -399,7 +363,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
           elements: whiteboardElements,
           viewport: whiteboardBinding.viewport,
         },
-        updatedAt: new Date().toISOString(),
+        updatedAt: JSON.stringify((priorContent as Partial<WhiteboardContent>).elements) === JSON.stringify(whiteboardElements) ? current.updatedAt : new Date().toISOString(),
       } as WhiteboardNote;
     }));
   }, [
@@ -411,28 +375,11 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     whiteboardElements,
   ]);
 
-  const insertCanvasCalculatorResult = useCallback(
-    (payload: CanvasCalculationInsert) => {
-      if (readOnly) return;
-      const board = boardRef.current;
-      if (!board) return;
-
-      const session = board.getSession();
-      const zoom = session.viewport.zoom || 1;
-      const calculationElement = createTextElement({
-        text: payload.text,
-        x: (payload.x - session.viewport.panX) / zoom,
-        y: (payload.y - session.viewport.panY) / zoom,
-        width: payload.width,
-        height: payload.height,
-        fontSize: 20,
-        fontWeight: "bold",
-        strokeColor: noteboardBrandColors.primary,
-      });
-      board.setElements([...board.getElements(), calculationElement]);
-    },
-    [noteboardBrandColors.primary, readOnly],
-  );
+  const admissionNotice = admissionError ? <div className="editor-save-alert" role="alert">{admissionError}<button type="button" className="btn-ghost" onClick={() => setAdmissionError("")}>Dismiss</button></div> : null;
+  const storageNotice = !collaboration.local && (collaboration.durability === "error" || collaboration.draftError) ? <div className="editor-save-alert" role="alert"><span>{collaboration.draftError || "Live changes have not been stored. Keep this page open or download a copy."}</span><button type="button" className="btn-ghost" onClick={() => downloadDraft(note.type === NoteType.Document ? content : JSON.stringify({ elements: whiteboardElements, viewport: whiteboardBinding.viewport }), "unsaved-live-note.txt")}>Download draft</button></div> : null;
+  const connectionNotice = !collaboration.local && collaboration.ready && collaboration.status !== "synced" ? (
+    <div className="editor-save-alert" role="alert"><CloudSlashIcon size={18} /><span><strong>Connection interrupted. Editing is paused.</strong><small>{collaboration.errorMessage || "Your current work remains here while the connection recovers."}</small></span><button type="button" className="btn-ghost" onClick={collaboration.retry}>Reconnect</button></div>
+  ) : null;
 
   const privateSaveNotice = privateAutosave.error ? (
     <div className="editor-save-alert" role="alert">
@@ -447,6 +394,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       </span>
       <button type="button" className="btn-ghost" onClick={privateAutosave.retry}>
         Try saving again
+      </button>
+      <button type="button" className="btn-ghost" onClick={() => downloadDraft(privateValue, note.type === NoteType.Document ? "unsaved-note.md" : "unsaved-board.json")}>
+        Download draft
       </button>
     </div>
   ) : privateAutosave.draftNotice?.kind === "recovered" ? (
@@ -531,6 +481,16 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
               {privateAutosave.draftNotice.message} Editing is paused until you
               choose, so neither copy can overwrite the other.
             </p>
+            {privateAutosave.availableDrafts.length > 1 && <label>Retained browser drafts<select aria-label="Retained browser drafts" onChange={event => privateAutosave.selectDraft(event.target.value)}>{privateAutosave.availableDrafts.map(draft => <option key={draft.noteId} value={draft.noteId}>{new Date(draft.updatedAt).toLocaleString()} — {draft.value.slice(0, 40)}</option>)}</select></label>}
+            <div className="draft-comparison">
+              <label>Browser draft<textarea aria-label="Browser draft" readOnly value={privateAutosave.conflictValue} /></label>
+              <label>Server copy<textarea aria-label="Server copy" readOnly value={privateAutosave.conflictServer
+                ? typeof privateAutosave.conflictServer.content === "string" ? privateAutosave.conflictServer.content : JSON.stringify(privateAutosave.conflictServer.content, null, 2)
+                : note.type === NoteType.Document ? initialDocumentContent : JSON.stringify(initialWhiteboard, null, 2)} /></label>
+            </div>
+            <button type="button" className="btn-ghost" onClick={() => downloadDraft(JSON.stringify({ browser: privateAutosave.conflictValue, server: privateAutosave.conflictServer?.content ?? (note.type === NoteType.Document ? initialDocumentContent : initialWhiteboard) }, null, 2), "note-conflict-copies.json")}>
+              Download both copies
+            </button>
           </div>
           <div className="editor-save-alert-actions">
             <button
@@ -556,7 +516,10 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   if (note.type === NoteType.Whiteboard) {
     return (
       <div className="whiteboard-editor-shell">
-        {privateSaveNotice}
+        {admissionNotice}
+      {storageNotice}
+      {connectionNotice}
+      {privateSaveNotice}
         <div className="whiteboard-editor-meta">
           <span>Infinite canvas</span>
           <div className="whiteboard-editor-actions">
@@ -579,36 +542,31 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
           </div>
         </div>
         <div className="whiteboard-workspace">
-          <div className="whiteboard-editor-canvas">
+          <CollaborationPresence className="whiteboard-editor-canvas" collaboration={collaboration} boardRef={boardRef} userId={user?._id}>
             <Noteboard
               key={note._id}
               ref={boardRef}
               elements={whiteboardElements}
-              initialViewport={
-                readOnly || collaboration.local
-                  ? whiteboardBinding.viewport
-                  : undefined
-              }
-              viewport={
-                !readOnly && !collaboration.local
-                  ? whiteboardBinding.viewport
-                  : undefined
-              }
+              initialViewport={initialWhiteboard.viewport}
+              acceptElementsChange={elements => {
+                const bytes = new TextEncoder().encode(JSON.stringify({ elements, viewport: whiteboardBinding.viewport })).length;
+                if (bytes > 1024 * 1024 - 4096) { setAdmissionError("This change exceeds the board storage limit. Remove an image or use a smaller image before trying again."); return false; }
+                setAdmissionError(""); return true;
+              }}
+              maxImageBytes={700 * 1024}
               onElementsChange={handleWhiteboardChange}
               history={whiteboardBinding.history}
-              onViewportChange={readOnly ? undefined : handleViewportChange}
+              onViewportChange={handleViewportChange}
               onThemeChange={setPreference}
               readOnly={readOnly}
               theme={preference}
               brandColors={noteboardBrandColors}
             />
-          </div>
+          </CollaborationPresence>
           {calculatorOpen && (
             <aside className="whiteboard-calculator-panel">
-              <CanvasCalculator
-                onInsert={insertCanvasCalculatorResult}
-                readOnly={readOnly}
-              />
+              <p>Private calculator · only visible to you</p>
+              <Calculator key={`${user?._id}:${note._id}`} theme={resolvedTheme} brandColors={noteboardBrandColors} />
             </aside>
           )}
         </div>
@@ -618,7 +576,11 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
 
   return (
     <div className={calculatorOpen ? "document-workspace has-tool-panel" : "document-workspace"}>
+      {admissionNotice}
+      {storageNotice}
+      {connectionNotice}
       {privateSaveNotice}
+      <CollaborationPresence className="document-presence-surface" collaboration={collaboration} userId={user?._id}>
       <DocumentEditor
         ref={documentEditorRef}
         className="thyncspace-document-editor"
@@ -634,9 +596,10 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
           </button>
         )}
       />
+      </CollaborationPresence>
       {calculatorOpen && <aside className="document-tool-panel" aria-label="Calculator">
-        <SavedCalculations content={content} readOnly={readOnly} onChange={changeDocumentContent} />
-        <DocumentCalculator onInsert={payload => documentEditorRef.current?.appendBlock(calculationMarkdown(payload))} readOnly={readOnly} />
+        <p>Private calculator · only visible to you</p>
+        <Calculator key={`${user?._id}:${note._id}`} theme={resolvedTheme} brandColors={noteboardBrandColors} />
       </aside>}
     </div>
   );
