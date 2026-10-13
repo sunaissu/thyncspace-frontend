@@ -7,6 +7,7 @@ import {
   MoonIcon,
   SunIcon,
 } from "@phosphor-icons/react";
+import Link from "next/link";
 import Head from "next/head";
 import React, { FormEvent, useEffect, useState } from "react";
 import AppLayout from "../components/appLayout";
@@ -282,6 +283,7 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
           </form>
         </section>
 
+        <section className="settings-section"><h2>Account privacy</h2><p>Download your account data and manage deletion requests.</p><Link className="btn-ghost" href="/privacy/">Manage account privacy</Link></section>
         <DeviceSessions />
         <StorageUsagePanel />
         <section className="settings-section settings-note">

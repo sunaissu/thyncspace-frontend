@@ -204,3 +204,9 @@ Open Capture from the workspace to review text before saving a private document 
 Sign-in can happen in another tab without discarding the capture. Save is explicit, failures preserve the text, and retries use the same ID to avoid duplicate notes. Organize and recover files saved notes into notebooks. Unsaved capture text lasts only in the current page; it is not a durable offline draft. Browser/OS share-sheet support varies: see [MDN share_target](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/share_target).
 
 Requests carry the account displayed in this tab. If another tab changes the session account, the API rejects the mismatch instead of saving under that other account. Refresh sign-in in Capture to choose the current identity explicitly. The account marker supplements existing authentication and CSRF checks.
+
+## Account privacy
+
+Settings links to Account privacy. Download my data retrieves a JSON Lines account export and verifies its completion marker before creating a download. Save pending note edits first; this is a read-time data export, not an atomic backup or a workspace import file. It includes owned documents/boards and retained history, profile and server-held preferences, with private credentials and other owners' content excluded. Browser-only drafts and calculator state are not sent to the server.
+
+Account deletion requires typing the current username and submitting a request. The page shows the request ID and pending date after reload, and allows cancellation while pending. A service operator must fulfil it using the backend maintenance procedure; submission does not immediately erase data or promise a processing deadline. Run npm run test:privacy for export completion and request/cancellation checks in Chrome.

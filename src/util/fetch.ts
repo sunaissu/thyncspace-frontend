@@ -356,3 +356,19 @@ export async function changeNoteSchedule(id: string, isActive: boolean): Promise
 export async function deleteNoteSchedule(id: string): Promise<void> { await fetchData(env.SERVER_URL + "/api/notes/schedules/" + encodeURIComponent(id), { method: "DELETE" }); }
 
 export async function saveCapture(captureId: string, title: string, text: string): Promise<Note> { return (await fetchData(env.SERVER_URL + "/api/notes/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ captureId, title, text }) }, false)).json(); }
+
+export interface DeletionRequest { id: string; status: "pending" | "cancelled"; requestedAt: string; cancelledAt?: string; }
+export async function fetchDeletionRequest(): Promise<DeletionRequest | null> {
+  return (await fetchData(`${env.SERVER_URL}/api/users/privacy/deletion`, { cache: "no-store" })).json();
+}
+export async function changeDeletionRequest(cancel: boolean, confirmation: string): Promise<DeletionRequest | null> {
+  return (await fetchData(`${env.SERVER_URL}/api/users/privacy/deletion`, { method: cancel ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: cancel ? undefined : JSON.stringify({ confirmation }) })).json();
+}
+export async function downloadAccountData(): Promise<Blob> {
+  const response = await fetchData(`${env.SERVER_URL}/api/users/privacy/export`, { cache: "no-store" });
+  const blob = await response.blob();
+  const tail = (await blob.slice(-2048).text()).trim().split("\n").at(-1);
+  const end = JSON.parse(tail || "{}");
+  if (end.kind !== "complete" || !Number.isInteger(end.records) || end.records < 1) throw new Error("The account export was incomplete. Try again.");
+  return blob;
+}

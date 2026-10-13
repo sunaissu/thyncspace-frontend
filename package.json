@@ -19,7 +19,8 @@
     "test:presence": "node scripts/presence-review.cjs",
     "test:links": "node scripts/links-review.cjs",
     "test:schedules": "node scripts/schedules-review.cjs",
-    "test:capture": "node scripts/capture-review.cjs"
+    "test:capture": "node scripts/capture-review.cjs",
+    "test:privacy": "node scripts/privacy-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

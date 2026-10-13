@@ -11,7 +11,7 @@ import { useRouter } from "next/router";
 import { ThemeProvider } from "../context/themeContext";
 import { useServiceWorker } from "../hooks/useServiceWorker";
 
-const PROTECTED_ROUTES = ["/notes", "/shared", "/favorites", "/settings"];
+const PROTECTED_ROUTES = ["/notes", "/shared", "/favorites", "/settings", "/privacy"];
 const AUTHENTICATED_REDIRECT_ROUTES = ["/", "/login", "/register"];
 
 export default function App({ Component, pageProps }: AppProps) {
