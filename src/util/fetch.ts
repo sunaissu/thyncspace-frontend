@@ -17,6 +17,8 @@ export const isUnauthorizedError = (error: unknown): error is ApiError =>
   error instanceof ApiError && error.status === 401;
 
 let csrfToken: string | null = null;
+let expectedAccount: string | null = null;
+export const setExpectedAccount = (userId: string | null) => { expectedAccount = userId; };
 let csrfTokenRequest: Promise<string> | null = null;
 
 const isMutation = (method: string) =>
@@ -53,6 +55,8 @@ const request = async (
 ): Promise<Response> => {
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
+  const path = typeof input === "string" ? new URL(input, env.SERVER_URL).pathname : "";
+  if (expectedAccount && !headers.has("X-Account-Id") && !path.startsWith("/api/auth/") && path !== "/api/users/getUser") headers.set("X-Account-Id", expectedAccount);
   if (isMutation(method)) {
     headers.set("X-CSRF-Token", await loadCsrfToken());
   }
@@ -67,7 +71,7 @@ const request = async (
     const errorBody = await response.clone().json().catch(() => ({}));
     if (errorBody.error === "Invalid CSRF token") {
       csrfToken = null;
-      return request(input, init, false);
+      return request(input, { ...init, headers }, false);
     }
   }
   return response;
@@ -350,3 +354,5 @@ export async function fetchNoteSchedules(): Promise<NoteSchedule[]> { return (aw
 export async function createNoteSchedule(value: Pick<NoteSchedule, "templateId" | "title" | "cadence" | "time" | "weekday">): Promise<NoteSchedule> { return (await fetchData(env.SERVER_URL + "/api/notes/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) })).json(); }
 export async function changeNoteSchedule(id: string, isActive: boolean): Promise<NoteSchedule> { return (await fetchData(env.SERVER_URL + "/api/notes/schedules/" + encodeURIComponent(id), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) })).json(); }
 export async function deleteNoteSchedule(id: string): Promise<void> { await fetchData(env.SERVER_URL + "/api/notes/schedules/" + encodeURIComponent(id), { method: "DELETE" }); }
+
+export async function saveCapture(captureId: string, title: string, text: string): Promise<Note> { return (await fetchData(env.SERVER_URL + "/api/notes/capture", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ captureId, title, text }) }, false)).json(); }

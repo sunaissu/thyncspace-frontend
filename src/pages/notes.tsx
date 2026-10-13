@@ -8,6 +8,7 @@ import CommandPalette from "../components/commandPalette";
 import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import NoteLibrary from "../components/noteLibrary";
 import Head from "next/head";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
@@ -119,6 +120,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   useEffect(() => {
     if (!router.isReady) return;
+    setNotebookFilter(typeof router.query.notebook === "string" ? router.query.notebook.slice(0, 80) : "");
     if (router.query.library === "trash") setLibraryOpen(true);
     let cancelled = false;
     const requestedNoteId =
@@ -160,7 +162,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     }
     void loadNotes();
     return () => { cancelled = true; };
-  }, [router.isReady, router.query.filter, router.query.noteId, router.query.library]);
+  }, [router.isReady, router.query.filter, router.query.noteId, router.query.library, router.query.notebook]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -388,6 +390,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               </div>
             </div>
             <div className="workspace-actions">
+              <Link className="btn-ghost" href="/capture/">Capture</Link>
               <button className="btn-ghost" type="button" onClick={() => setSchedulesOpen(true)}>Daily notes</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
@@ -701,6 +704,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
         <dialog ref={mobileToolsDialog} className="workspace-tools-menu" aria-label="Workspace tools">
           <header><h2>Workspace tools</h2><button type="button" className="btn-ghost" onClick={() => mobileToolsDialog.current?.close()}>Close tools</button></header>
+          <Link href="/capture/" onClick={() => mobileToolsDialog.current?.close()}>Capture to Inbox</Link>
           <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
           <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
           <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => setConnectionsOpen(true))}>Connections</button>

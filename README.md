@@ -196,3 +196,11 @@ Unavailable/invalid templates pause their schedules with an explanation.
 On mobile, Workspace tools in the active note header opens daily notes, connections,
 tasks, organization, import, creation and note actions without a permanent extra
 toolbar. Run npm run test:schedules for the daily/recurring and mobile access flow.
+
+## Quick capture
+
+Open Capture from the workspace to review text before saving a private document in Inbox. The installed PWA declares a text/URL share target for browsers that support it; receiving and reviewing a share also works at /capture/?title=...&text=...&url=.... The GET share target initially places content in the request URL; the page removes query parameters from the current history entry after reading them. Do not use URL sharing for secrets. No supplied URL is fetched.
+
+Sign-in can happen in another tab without discarding the capture. Save is explicit, failures preserve the text, and retries use the same ID to avoid duplicate notes. Organize and recover files saved notes into notebooks. Unsaved capture text lasts only in the current page; it is not a durable offline draft. Browser/OS share-sheet support varies: see [MDN share_target](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Manifest/Reference/share_target).
+
+Requests carry the account displayed in this tab. If another tab changes the session account, the API rejects the mismatch instead of saving under that other account. Refresh sign-in in Capture to choose the current identity explicitly. The account marker supplements existing authentication and CSRF checks.

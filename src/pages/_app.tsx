@@ -26,9 +26,11 @@ export default function App({ Component, pageProps }: AppProps) {
       setIsLoading(true);
       setAuthError("");
       const user = await NotesApi.getLoginUser();
+      NotesApi.setExpectedAccount(user._id);
       setLoggedInUser(user);
     } catch (error) {
       if (NotesApi.isUnauthorizedError(error)) {
+        NotesApi.setExpectedAccount(null);
         setLoggedInUser(null);
       } else {
         setAuthError(
@@ -70,6 +72,7 @@ export default function App({ Component, pageProps }: AppProps) {
     setIsLoading(true);
     try {
       await NotesApi.logout();
+      NotesApi.setExpectedAccount(null);
       setLoggedInUser(null);
       await router.replace("/login");
     } catch (error) {
@@ -133,7 +136,7 @@ export default function App({ Component, pageProps }: AppProps) {
         <Component
           {...pageProps}
           loggedInUser={loggedInUser}
-          onUserUpdate={setLoggedInUser}
+          onUserUpdate={(user: User | null) => { NotesApi.setExpectedAccount(user?._id ?? null); setLoggedInUser(user); }}
         />
       </div>
     </ThemeProvider>

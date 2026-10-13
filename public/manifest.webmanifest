@@ -9,7 +9,10 @@
   "orientation": "any",
   "background_color": "#0b63e5",
   "theme_color": "#0b63e5",
-  "categories": ["productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -35,7 +38,32 @@
       "name": "My notes",
       "short_name": "Notes",
       "url": "/notes",
-      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Quick capture",
+      "short_name": "Capture",
+      "url": "/capture/",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
-  ]
+  ],
+  "share_target": {
+    "action": "/capture/",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
