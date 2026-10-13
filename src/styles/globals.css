@@ -4713,3 +4713,25 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .notebook-hint, .notebook-layout small { color: var(--color-text-muted); font-size: .8rem; }
 .notebook-dialog button:disabled { opacity: .5; cursor: not-allowed; }
 @media(max-width:760px) { .notebook-dialog { padding: 16px; } .notebook-dialog > header { top: -16px; } .notebook-layout { grid-template-columns: minmax(0, 1fr); } .notebook-layout nav { max-height: 260px; overflow: auto; overscroll-behavior: contain; } }
+
+.passage-ai-dialog { margin: auto; width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); color: var(--color-text); }
+.passage-ai-dialog::backdrop { background: #0007; }
+.passage-ai-dialog > header { position: sticky; top: -24px; z-index: 2; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; background: var(--color-surface); padding-block: 12px; border-bottom: 1px solid var(--color-border); }
+.passage-ai-dialog h2 { font-size: 1.4rem; font-weight: 650; }
+.passage-ai-dialog h3 { font-weight: 600; }
+.passage-ai-dialog p { margin-block: 12px; }
+.passage-ai-dialog label { display: grid; min-width: 0; gap: 6px; margin-block: 12px; }
+.passage-ai-dialog textarea, .passage-ai-dialog select { width: 100%; min-width: 0; padding: 10px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface-2); color: var(--color-text); }
+.passage-ai-dialog textarea { resize: vertical; max-height: 45dvh; }
+.passage-ai-controls, .passage-ai-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; margin-block: 12px; }
+.passage-ai-controls label { flex: 1; min-width: 180px; }
+.passage-ai-preview, .passage-ai-result { padding: 16px; border: 1px solid var(--color-border); border-radius: 12px; margin-block: 20px; overflow-wrap: anywhere; }
+.passage-ai-dialog pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 40dvh; overflow: auto; overscroll-behavior: contain; padding-block: 8px; }
+.passage-ai-dialog .passage-ai-consent { display: flex; gap: 8px; align-items: start; }
+.passage-ai-consent input { margin-top: 5px; }
+.passage-ai-hint { font-size: .8rem; color: var(--color-text-muted); }
+.passage-ai-hint a { text-decoration: underline; }
+.passage-ai-dialog blockquote { padding: 8px 12px; border-left: 2px solid var(--color-border); white-space: pre-wrap; margin-block: 12px; }
+.passage-ai-dialog summary { cursor: pointer; }
+.passage-ai-dialog button:disabled { opacity: .5; cursor: not-allowed; }
+@media(max-width:760px) { .passage-ai-dialog { padding: 16px; } .passage-ai-dialog > header { top: -16px; } }

@@ -284,3 +284,9 @@ Open Commands → Shared notebooks, or use the mobile tools menu. Owners can cre
 Wait for open notes to show Saved before changing access. Membership changes apply to all contained notes and require confirmation. Detaching makes a note private; deleting a notebook keeps its notes and makes them private. Trashed notes recover privately. Changes use revision checks; Refresh notebooks loads the current state after a conflict. Live role changes update editor controls and note access labels. Switching between private and live modes loads the latest committed content and revision rather than seeding a private editor from stale metadata.
 
 Limits: 20 owned notebooks, 100 notes and 100 members per notebook, with 50 notebooks per list page. Run npm run test:notebooks for UI behavior and responsive layouts, and npm run test:presence for real two-person collaboration with inherited roles.
+
+### Selected-passage AI
+
+Open Commands > Passage AI actions, or use the mobile tools menu. Choose a saved document, select a passage, and review the send preview. Summarize passage and Extract stated variables each require consent for that request. Changing the selection, source or action clears consent. Save pending edits first; stale saved revisions require reloading and selecting again. Availability depends on backend configuration and is off by default.
+
+Generated output is plain text with source quotes, revision and an exact passage. Review it before use. Download preserves the result as JSON; Save a private copy creates an independent Inbox document with a source link. Generated content is stored as literal code text so it cannot activate image requests or links. No action writes into a shared document or calculator. Closing or leaving warns about unsaved output. Run npm run test:ai for the mocked-provider browser regression; real provider credentials and billing were not exercised.
