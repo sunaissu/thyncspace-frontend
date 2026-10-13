@@ -220,3 +220,11 @@ Recovery/verification links carry their token in the URL fragment. The receiving
 ## Note activity
 
 Select an owned note and open Activity from the workspace bar or mobile Workspace tools. The dialog shows saved edits, sharing/permission changes, organization, trash and restore events, with refresh and keyboard dismissal. Up to 100 recent events are retained from rollout onwards. Live saves can combine multiple contributors and are labelled Live collaboration; named actors use current profile names. The timeline is owner-only. Run npm run test:activity for desktop/mobile controls and layout.
+
+## Private study tools
+
+Open Commands > Study tools, or use Study tools in the mobile workspace menu. Choose a document and load/paste a matching excerpt, up to 20,000 characters. Draft generation recognizes consecutive Q:/A: lines, Term: definition lines, and Markdown headings followed by paragraphs. It ignores fenced examples, quotes source answers and produces up to 20 drafts. Review/edit each question and answer, or write a card manually, before saving.
+
+Cards live in account-scoped IndexedDB on this browser, with a 200-card cap. Flashcard practice reveals answers; question practice also provides a place to write your own answer before revealing. Self-ratings and review counts persist. Source links open currently accessible notes, and changed/unavailable sources are indicated. Saved cards are private copies: revoking source access cannot recall an existing copy.
+
+Concurrent tabs use revision checks so stale changes/deletes are rejected. Reload the deck or preserve edits as a new draft after a conflict. Storage failures keep the editor open with an error and a JSON download option. Download cards and drafts exports their text and source excerpts; clearing browser storage removes local cards. Server account exports cannot include them. Run npm run test:study for generation, editing, persistence, practice, export, source navigation and mobile layout.

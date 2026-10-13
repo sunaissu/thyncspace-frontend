@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { noteMatchesSearch, type Note } from "../model/note";
 
-export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary, onImport }: {
-  notes: Note[]; onOpenNote: (id: string) => void; onNewNote: () => void; onLibrary: () => void; onImport: () => void;
+export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary, onImport, onStudy }: {
+  notes: Note[]; onOpenNote: (id: string) => void; onNewNote: () => void; onLibrary: () => void; onImport: () => void; onStudy?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -19,7 +19,7 @@ export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary
     return () => window.removeEventListener("keydown", key);
   }, []);
   const run = (action: () => void) => { dialog.current?.close(); action(); };
-  const actions = [{ label: "Create a note", run: onNewNote }, { label: "Organize notes and recover trash", run: onLibrary }, { label: "Import Markdown", run: onImport }].filter(action => action.label.toLowerCase().includes(query.toLowerCase()));
+  const actions = [{ label: "Create a note", run: onNewNote }, { label: "Organize notes and recover trash", run: onLibrary }, { label: "Import Markdown", run: onImport }, ...(onStudy ? [{ label: "Study tools", run: onStudy }] : [])].filter(action => action.label.toLowerCase().includes(query.toLowerCase()));
   const matches = notes.filter(note => noteMatchesSearch(note, query)).slice(0, 50);
   return <>
     <button className="btn-ghost" type="button" title="Commands (Ctrl/⌘ Shift P)" onClick={show}>Commands</button>
