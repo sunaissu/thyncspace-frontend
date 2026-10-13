@@ -47,5 +47,5 @@ export default defineConfig([
       "react-hooks/refs": "off",
     },
   },
-  globalIgnores([".next/**", "out/**", "next-env.d.ts"]),
+  globalIgnores(["public/pdf-worker-*.mjs", ".next/**", "out/**", "next-env.d.ts"]),
 ]);

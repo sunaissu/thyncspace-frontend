@@ -23,7 +23,10 @@
     "test:privacy": "node scripts/privacy-review.cjs",
     "test:security": "node scripts/security-review.cjs",
     "test:activity": "node scripts/activity-review.cjs",
-    "test:study": "node scripts/study-review.cjs"
+    "test:study": "node scripts/study-review.cjs",
+    "predev": "node scripts/prepare-pdf.cjs",
+    "prebuild": "node scripts/prepare-pdf.cjs",
+    "test:attachments": "node scripts/attachments-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",
@@ -32,6 +35,7 @@
     "@sunaissu/document-editor": "file:vendor/sunaissu-document-editor-1.0.1.tgz",
     "@sunaissu/noteboard": "file:vendor/sunaissu-noteboard-2.0.1.tgz",
     "next": "16.3.8",
+    "pdfjs-dist": "^6.4.299",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "yjs": "^13.6.31"

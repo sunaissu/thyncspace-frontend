@@ -36,3 +36,5 @@ next-env.d.ts
 
 # Browser review artifacts
 /test/artifacts/
+
+/public/pdf-worker-*.mjs

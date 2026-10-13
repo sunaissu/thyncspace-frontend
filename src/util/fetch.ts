@@ -387,3 +387,11 @@ export const changeAccountPassword = (currentPassword: string, newPassword: stri
 export interface NoteActivityEvent { id: string; kind: string; at: string; actor: string; target?: string; permission?: string; sourceNoteId?: string; sourceVersionId?: string; }
 export interface NoteActivity { createdAt: string; limit: number; events: NoteActivityEvent[]; }
 export async function fetchNoteActivity(noteId: string): Promise<NoteActivity> { return (await fetchData(`${env.SERVER_URL}/api/notes/${encodeURIComponent(noteId)}/activity`, { cache: "no-store" })).json(); }
+
+export interface AttachmentFile { id: string; name: string; mime: string; bytes: number; owner: string; references: Array<{ noteId: string; title: string }>; createdAt: string; indexedAt?: string; }
+export interface AttachmentLibraryData { files: AttachmentFile[]; truncated: boolean; usage: { bytes: number; count: number }; limits: { fileBytes: number; accountBytes: number; count: number }; }
+export async function fetchAttachments(q = "", noteId?: string): Promise<AttachmentLibraryData> { const query = new URLSearchParams({ q }); if (noteId) query.set("noteId", noteId); return (await fetchData(env.SERVER_URL + "/api/attachments?" + query, { cache: "no-store" })).json(); }
+export async function fetchAttachmentContent(id: string): Promise<Blob> { return (await fetchData(env.SERVER_URL + "/api/attachments/" + encodeURIComponent(id) + "/content", { cache: "no-store" })).blob(); }
+export async function uploadAttachment(name: string, mime: string, data: string): Promise<{ id: string }> { return (await fetchData(env.SERVER_URL + "/api/attachments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, mime, data }) })).json(); }
+export async function referenceAttachment(id: string, noteId: string, remove: boolean): Promise<void> { await fetchData(env.SERVER_URL + "/api/attachments/" + encodeURIComponent(id) + "/references", { method: remove ? "DELETE" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ noteId }) }); }
+export async function deleteAttachment(id: string): Promise<void> { await fetchData(env.SERVER_URL + "/api/attachments/" + encodeURIComponent(id), { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: id }) }); }

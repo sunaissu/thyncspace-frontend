@@ -1,3 +1,4 @@
+import AttachmentLibrary from "../components/attachmentLibrary";
 import StudyTools from "../components/studyTools";
 import NoteActivity from "../components/noteActivity";
 import NoteSchedules from "../components/noteSchedules";
@@ -96,6 +97,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
   const [schedulesOpen, setSchedulesOpen] = useState(false);
@@ -399,7 +401,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               <button className="btn-ghost" type="button" disabled={!activeNote || !isOwner} onClick={() => setActivityOpen(true)}>Activity</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
-              <CommandPalette onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
+              <CommandPalette onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
               <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
               <button
                 type="button"
@@ -426,6 +428,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             </div>
           </header>
 
+          {attachmentsOpen && loggedInUser && <AttachmentLibrary key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} onOpenNote={closeOrSwitchNote} onClose={() => setAttachmentsOpen(false)} />}
           {studyOpen && loggedInUser && <StudyTools key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?.type === "document" ? activeNote._id : undefined} onOpenNote={closeOrSwitchNote} onClose={() => setStudyOpen(false)} />}
           {activityOpen && activeNote && isOwner && <NoteActivity noteId={activeNote._id} title={activeNote.title} onClose={() => setActivityOpen(false)} />}
           {connectionsOpen && activeNote && <NoteConnections notes={notes} note={activeNote} onOpen={closeOrSwitchNote} onClose={() => setConnectionsOpen(false)} />}
@@ -715,6 +718,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
           <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
           <button type="button" disabled={!activeNote || !isOwner} onClick={() => openMobileTool(() => setActivityOpen(true))}>Activity</button>
+          <button type="button" onClick={() => openMobileTool(() => setAttachmentsOpen(true))}>Attachments</button>
           <button type="button" onClick={() => openMobileTool(() => setStudyOpen(true))}>Study tools</button>
           <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => setConnectionsOpen(true))}>Connections</button>
           <button type="button" onClick={() => openMobileTool(() => { setTasksOpen(true); setLibraryOpen(false); })}>Tasks</button>
