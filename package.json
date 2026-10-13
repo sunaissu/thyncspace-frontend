@@ -29,7 +29,8 @@
     "test:attachments": "node scripts/attachments-review.cjs",
     "test:ocr": "node scripts/ocr-review.cjs",
     "test:reminders": "node scripts/reminders-review.cjs",
-    "test:offline": "node scripts/offline-review.cjs"
+    "test:offline": "node scripts/offline-review.cjs",
+    "test:embeds": "node scripts/embeds-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

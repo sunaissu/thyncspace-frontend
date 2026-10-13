@@ -3,6 +3,7 @@ import * as Api from "../util/fetch";
 
 const description = (event: Api.NoteActivityEvent) => {
   switch (event.kind) {
+    case "embed": return "Updated linked sources";
     case "edit": return "Saved edits";
     case "share": return `Shared with ${event.target ?? "a former account"} as ${event.permission}`;
     case "permission": return `Changed ${event.target ?? "a former account"} to ${event.permission}`;

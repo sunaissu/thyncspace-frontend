@@ -19,6 +19,8 @@ export interface Collaborator {
 export interface BaseNote {
   _id: string;
   contentRevision?: number;
+  linkedSources?: Array<{ noteId: string; sourceRevision: number }>;
+  embedRevision?: number;
   isTemplate?: boolean;
   isArchived?: boolean;
   notebook?: string;
