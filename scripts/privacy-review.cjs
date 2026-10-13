@@ -5,13 +5,14 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3011';
  try {
   const page = await browser.newPage({ viewport: { width: 390, height: 950 } });
   const user = { _id: '64b000000000000000000001', username: 'Privacy owner' };
-  let request = null, incomplete = true, writes = 0; const errors = [];
+  let request = null, incomplete = true, writes = 0, metrics = { enabled: false, revision: 0 }, metricWrites = 0; const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.route('**/api/**', async route => {
    const req = route.request(), path = new URL(req.url()).pathname;
    let body, status = 200, contentType = 'application/json';
    if (path.endsWith('/getUser')) body = { user };
    else if (path.endsWith('/csrf-token')) body = { token: 'fixture' };
+   else if (path.endsWith('/privacy/metrics')) { if (req.method() === 'PATCH') { metricWrites++; const input = req.postDataJSON(); expect(req.headers()['x-account-id']).toBe(user._id); if (input.expectedRevision !== metrics.revision) { status = 409; body = { error: 'Your privacy setting changed. Refresh before changing it' }; } else metrics = { enabled: input.enabled, revision: metrics.revision + 1 }; } body ??= metrics; }
    else if (path.endsWith('/privacy/export')) { contentType = 'application/x-ndjson'; body = '{"kind":"profile","data":{"username":"Privacy owner"}}\n' + (incomplete ? '' : '{"kind":"complete","records":1}\n'); }
    else if (path.endsWith('/privacy/deletion')) {
     if (req.method() !== 'GET') {
@@ -41,7 +42,10 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3011';
   await expect(page.getByRole('button', { name: 'Cancel deletion request' })).toBeVisible();
   await page.getByRole('button', { name: 'Cancel deletion request' }).click();
   await expect(page.getByText('Your previous request was cancelled.')).toBeVisible();
-  expect(writes).toBe(2);
+  expect(writes).toBe(2); expect(metricWrites).toBe(0);
+  await expect(page.getByText('Usage counts are off.', { exact: true })).toBeVisible(); await page.getByRole('button', { name: 'Allow usage counts', exact: true }).click(); await expect(page.getByText('Usage counts are on.', { exact: true })).toBeVisible();
+  metrics = { enabled: true, revision: 2 }; await page.getByRole('button', { name: 'Turn off and delete usage counts', exact: true }).click(); await expect(page.getByText('Your privacy setting changed. Refresh before changing it')).toBeVisible(); await page.getByRole('button', { name: 'Refresh usage preference', exact: true }).click(); await expect(page.getByText('Your privacy setting changed. Refresh before changing it')).toHaveCount(0); await page.getByRole('button', { name: 'Turn off and delete usage counts', exact: true }).click(); await expect(page.getByText('Usage counts are off.', { exact: true })).toBeVisible(); expect(metricWrites).toBe(3);
+  await page.setViewportSize({ width: 320, height: 950 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(errors).toEqual([]);
   console.log('Account export completion, explicit deletion request, persisted status, cancellation, and mobile layout passed.');

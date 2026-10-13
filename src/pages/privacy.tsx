@@ -1,3 +1,4 @@
+import UsageConsent from "../components/usageConsent";
 import Head from "next/head";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -47,6 +48,7 @@ export default function Privacy({ loggedInUser }: { loggedInUser?: User | null }
       <p>Save pending edits first. Records reflect the time they are read. Credentials and session tokens are excluded. Private calculator state, study cards, offline copies and drafts stored only on a device are not held by the server. This JSON Lines data file is for inspection, separate from Markdown import/export.</p>
       <button type="button" className="btn-primary" disabled={busy} onClick={() => void download()}>Download my data</button>
     </section>
+    <UsageConsent key={loggedInUser?._id} owner={loggedInUser?._id} />
     <section className="settings-section" aria-labelledby="deletion-heading"><h2 id="deletion-heading">Request account deletion</h2>
       <p>This submits a request for the service operator to process. It does not delete data immediately. The request covers your account, owned attachments and owned notes, including files and notes you shared. Copies already exported by other people cannot be recalled.</p>
       {loading ? <p role="status">Loading request…</p> : request?.status === "pending" ? <>
