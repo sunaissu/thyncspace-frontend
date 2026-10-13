@@ -27,6 +27,7 @@ interface ObsidianBridgeProps {
   notes: Note[];
   activeNote: Note | null;
   onClose: () => void;
+  onCompanion?: () => void;
   onImport: (notes: ImportedMarkdownNote[]) => Promise<void>;
 }
 
@@ -75,6 +76,7 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
   notes,
   activeNote,
   onClose,
+  onCompanion,
   onImport,
 }) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -376,8 +378,9 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
             </div>
           )}
 
+          {onCompanion && <button type="button" className="btn-primary" disabled={busy} onClick={onCompanion}>Set up Obsidian companion</button>}
           <p className="bridge-footnote">
-            For automatic two-way sync, ThyncSpace will need a companion Obsidian plugin. This bridge keeps the first integration private and portable without requiring vault-wide permission.
+            The desktop companion adds selective two-way sync and conflict review for private documents.
           </p>
         </div>
       </aside>

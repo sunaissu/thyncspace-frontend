@@ -1,3 +1,4 @@
+import CompanionConnections from "../components/companionConnections";
 import WorkspaceArchive from "../components/workspaceArchive";
 import PassageAi from "../components/passageAi";
 import SharedNotebooks from "../components/sharedNotebooks";
@@ -104,6 +105,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [companionOpen, setCompanionOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [notebooksOpen, setNotebooksOpen] = useState(false);
@@ -421,7 +423,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               <button className="btn-ghost" type="button" disabled={!activeNote || !isOwner} onClick={() => setActivityOpen(true)}>Activity</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
-              <CommandPalette onArchive={() => setArchiveOpen(true)} onAi={() => setAiOpen(true)} onNotebooks={() => setNotebooksOpen(true)} onDiscussions={() => setDiscussionsOpen(true)} onSources={() => setSourcesOpen(true)} onOffline={() => void cacheSelectedOffline()} onReminders={() => setRemindersOpen(true)} onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
+              <CommandPalette onCompanion={() => setCompanionOpen(true)} onArchive={() => setArchiveOpen(true)} onAi={() => setAiOpen(true)} onNotebooks={() => setNotebooksOpen(true)} onDiscussions={() => setDiscussionsOpen(true)} onSources={() => setSourcesOpen(true)} onOffline={() => void cacheSelectedOffline()} onReminders={() => setRemindersOpen(true)} onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
               <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
               <button
                 type="button"
@@ -450,6 +452,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
           {loggedInUser && <ReminderCenter key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} open={remindersOpen} onOpen={() => setRemindersOpen(true)} onClose={() => setRemindersOpen(false)} onOpenNote={closeOrSwitchNote} />}
           {attachmentsOpen && loggedInUser && <AttachmentLibrary key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} onOpenNote={closeOrSwitchNote} onClose={() => setAttachmentsOpen(false)} />}
+          {companionOpen && loggedInUser && <CompanionConnections key={loggedInUser._id} owner={loggedInUser._id} notes={notes} onClose={() => setCompanionOpen(false)} />}
           {archiveOpen && loggedInUser && <WorkspaceArchive key={loggedInUser._id} owner={loggedInUser._id} canExport={(!activeNote || saveStatus === "saved") && (!secondaryNote || secondaryStatus === "saved")} onClose={() => setArchiveOpen(false)} onRestored={async () => { const owned = await NotesApi.fetchNotes(); setNotes(current => { const existing = new Set(current.map(note => note._id)); return [...current, ...owned.filter(note => !existing.has(note._id))]; }); }} />}
           {aiOpen && loggedInUser && <PassageAi key={loggedInUser._id} notes={notes} initialNoteId={activeNote?.type === "document" ? activeNote._id : undefined} onClose={() => setAiOpen(false)} onOpenNote={closeOrSwitchNote} onCreated={note => setNotes(current => current.some(item => item._id === note._id) ? current : [note, ...current])} />}
           {notebooksOpen && loggedInUser && <SharedNotebooks key={loggedInUser._id} owner={loggedInUser._id} notes={notes} blockedNotes={[...(activeNote && saveStatus !== "saved" ? [activeNote._id] : []), ...(secondaryNote && secondaryStatus !== "saved" ? [secondaryNote._id] : [])]} onUpdated={async () => { const [owned, shared] = await Promise.all([NotesApi.fetchNotes(), NotesApi.fetchSharedNotes()]); setNotes(current => { const byId = new Map(current.map(note => [note._id, note])); return [...owned, ...shared].map(saved => { const prior = byId.get(saved._id); if (!prior) return saved; const wasLive = prior.owner !== loggedInUser._id || prior.sharedWith.length > 0, isLive = saved.owner !== loggedInUser._id || saved.sharedWith.length > 0; return wasLive !== isLive ? saved : { ...prior, sharedWith: saved.sharedWith, sharedNotebookId: saved.sharedNotebookId }; }); }); }} onOpenNote={note => { setNotes(current => current.some(item => item._id === note._id) ? current : [note, ...current]); setSelectedNoteId(note._id); }} onClose={() => setNotebooksOpen(false)} />}
@@ -744,6 +747,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
           <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
           <button type="button" disabled={!activeNote || !isOwner} onClick={() => openMobileTool(() => setActivityOpen(true))}>Activity</button>
+          <button type="button" onClick={() => openMobileTool(() => setCompanionOpen(true))}>Obsidian companion</button>
           <button type="button" onClick={() => openMobileTool(() => setArchiveOpen(true))}>Workspace archive</button>
           <button type="button" onClick={() => openMobileTool(() => setAiOpen(true))}>Passage AI actions</button>
           <button type="button" onClick={() => openMobileTool(() => setNotebooksOpen(true))}>Shared notebooks</button>
@@ -778,6 +782,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           notes={notes}
           activeNote={activeNote}
           onClose={() => setObsidianOpen(false)}
+          onCompanion={() => { setObsidianOpen(false); setCompanionOpen(true); }}
           onImport={handleImportMarkdown}
         />
 

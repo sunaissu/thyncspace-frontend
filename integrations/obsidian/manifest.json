@@ -1,0 +1,9 @@
+{
+  "id": "thyncspace-companion",
+  "name": "ThyncSpace companion",
+  "version": "1.0.0",
+  "minAppVersion": "1.11.4",
+  "description": "Selective private document sync with explicit conflict review and linked file downloads.",
+  "author": "ThyncSpace",
+  "isDesktopOnly": true
+}

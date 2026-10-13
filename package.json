@@ -24,8 +24,8 @@
     "test:security": "node scripts/security-review.cjs",
     "test:activity": "node scripts/activity-review.cjs",
     "test:study": "node scripts/study-review.cjs",
-    "predev": "node scripts/prepare-pdf.cjs && node scripts/prepare-ocr.cjs",
-    "prebuild": "node scripts/prepare-pdf.cjs && node scripts/prepare-ocr.cjs",
+    "predev": "node scripts/prepare-pdf.cjs && node scripts/prepare-ocr.cjs && node scripts/prepare-companion.cjs",
+    "prebuild": "node scripts/prepare-pdf.cjs && node scripts/prepare-ocr.cjs && node scripts/prepare-companion.cjs",
     "test:attachments": "node scripts/attachments-review.cjs",
     "test:ocr": "node scripts/ocr-review.cjs",
     "test:reminders": "node scripts/reminders-review.cjs",
@@ -34,7 +34,8 @@
     "test:discussions": "node scripts/discussions-review.cjs",
     "test:notebooks": "node scripts/notebooks-review.cjs",
     "test:ai": "node scripts/ai-review.cjs",
-    "test:archive": "node scripts/archive-review.cjs"
+    "test:archive": "node scripts/archive-review.cjs",
+    "test:companion": "node scripts/companion-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

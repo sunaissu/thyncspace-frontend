@@ -35,7 +35,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["*.config.js", "test/*.cjs", "scripts/*.cjs"],
+    files: ["*.config.js", "test/*.cjs", "scripts/*.cjs", "integrations/obsidian/*.cjs"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",
     },
@@ -47,5 +47,5 @@ export default defineConfig([
       "react-hooks/refs": "off",
     },
   },
-  globalIgnores(["public/ocr/**","public/pdf-worker-*.mjs", ".next/**", "out/**", "next-env.d.ts"]),
+  globalIgnores(["public/obsidian-companion/**","public/ocr/**","public/pdf-worker-*.mjs", ".next/**", "out/**", "next-env.d.ts"]),
 ]);

@@ -39,3 +39,5 @@ next-env.d.ts
 
 /public/pdf-worker-*.mjs
 /public/ocr/
+
+/public/obsidian-companion/

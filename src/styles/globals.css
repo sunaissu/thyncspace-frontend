@@ -4754,3 +4754,25 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .archive-hint { font-size: .8rem; color: var(--color-text-muted); }
 .archive-dialog button:disabled { opacity: .5; cursor: not-allowed; }
 @media(max-width:760px) { .archive-dialog { padding: 16px; } .archive-dialog > header { top: -16px; } }
+
+.companion-dialog { margin: auto; width: min(920px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; overscroll-behavior: contain; padding: 24px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); color: var(--color-text); overflow-wrap: anywhere; }
+.companion-dialog::backdrop { background: #0007; }
+.companion-dialog > header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; position: sticky; top: -24px; padding-block: 12px; background: var(--color-surface); z-index: 2; border-bottom: 1px solid var(--color-border); }
+.companion-dialog h2 { font-size: 1.4rem; font-weight: 650; }
+.companion-dialog h3 { font-size: 1.1rem; font-weight: 600; }
+.companion-dialog p { margin-block: 12px; }
+.companion-dialog section { margin-top: 24px; border-top: 1px solid var(--color-border); padding-top: 16px; }
+.companion-dialog label { display: grid; gap: 8px; min-width: 0; margin-block: 12px; }
+.companion-dialog input[type=text], .companion-dialog input:not([type]), .companion-dialog textarea { width: 100%; min-width: 0; background: var(--color-surface-2); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; }
+.companion-dialog .companion-check, .companion-note-list label { display: flex; align-items: start; gap: 8px; }
+.companion-check input, .companion-note-list input { margin-top: 5px; }
+.companion-note-list { max-height: 220px; overflow: auto; overscroll-behavior: contain; border: 1px solid var(--color-border); padding: 12px; border-radius: 8px; }
+.companion-token { padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; }
+.companion-connection-list li { padding: 16px 0; border-bottom: 1px solid var(--color-border); }
+.companion-dialog summary { cursor: pointer; }
+.companion-dialog ol { list-style: decimal; padding-left: 24px; margin-block: 12px; }
+.companion-dialog li { margin-block: 8px; }
+.companion-dialog a { text-decoration: underline; }
+.companion-hint { font-size: .8rem; color: var(--color-text-muted); }
+.companion-dialog button:disabled { opacity: .5; cursor: not-allowed; }
+@media(max-width:760px) { .companion-dialog { padding: 16px; } .companion-dialog > header { top: -16px; } }
