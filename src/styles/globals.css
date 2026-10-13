@@ -4659,3 +4659,34 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .linked-sources button:disabled { opacity: .5; cursor: not-allowed; }
 .active-note-editor.primary-note-pane { display: flex; flex-direction: column; }
 .active-note-editor.primary-note-pane > .document-workspace, .active-note-editor.primary-note-pane > .whiteboard-editor-shell { flex: 1 1 auto; min-height: 0; }
+
+.discussion-dialog { margin: auto; width: min(1100px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 24px; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); color: var(--color-text); overflow: auto; overscroll-behavior: contain; }
+.discussion-dialog::backdrop { background: #0007; }
+.discussion-dialog > header { display: flex; justify-content: space-between; align-items: center; gap: 16px; position: sticky; top: -24px; background: var(--color-surface); padding-block: 12px; border-bottom: 1px solid var(--color-border); z-index: 2; }
+.discussion-dialog h2 { font-size: 1.4rem; font-weight: 650; }
+.discussion-dialog h3 { font-size: 1.1rem; font-weight: 600; }
+.discussion-dialog p { margin-block: 12px; }
+.discussion-dialog label { display: grid; gap: 6px; min-width: 0; }
+.discussion-dialog select, .discussion-dialog textarea { width: 100%; min-width: 0; border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; background: var(--color-surface-2); color: var(--color-text); }
+.discussion-dialog textarea { resize: vertical; }
+.discussion-filters { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; align-items: end; gap: 12px; margin-block: 20px; }
+.discussion-layout { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(0, 2fr); gap: 24px; }
+.discussion-layout nav { display: flex; flex-direction: column; gap: 10px; max-height: 65dvh; overflow: auto; overscroll-behavior: contain; }
+.discussion-layout nav > button { text-align: left; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; overflow-wrap: anywhere; }
+.discussion-layout nav > button[aria-current=true] { border-color: var(--color-accent); background: var(--color-surface-2); }
+.discussion-layout nav span, .discussion-layout nav small { display: block; margin-top: 6px; }
+.discussion-layout section { min-width: 0; overflow-wrap: anywhere; }
+.discussion-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-block: 10px; }
+.discussion-posts { display: grid; gap: 12px; margin-block: 16px; }
+.discussion-posts li { padding: 16px; border: 1px solid var(--color-border); border-radius: 10px; }
+.discussion-posts li > div:first-child { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.discussion-posts p { white-space: pre-wrap; }
+.discussion-posts time, .discussion-hint, .discussion-layout nav small { color: var(--color-text-muted); font-size: .8rem; }
+.discussion-dialog details { margin-block: 12px; }
+.discussion-dialog summary { cursor: pointer; }
+.discussion-mentions { display: flex; flex-wrap: wrap; gap: 12px; padding: 12px 0; }
+.discussion-mentions label { display: flex; align-items: center; gap: 6px; }
+.discussion-dialog button:disabled { opacity: .5; cursor: not-allowed; }
+@media(max-width:760px) { .discussion-dialog { padding: 16px; } .discussion-dialog > header { top: -16px; } .discussion-filters, .discussion-layout { grid-template-columns: minmax(0, 1fr); } .discussion-layout nav { max-height: 180px; } }
+
+@media(max-width:360px) { .discussion-dialog > header { flex-wrap: wrap; gap: 4px; } }

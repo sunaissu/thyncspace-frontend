@@ -419,3 +419,25 @@ function readLinkedSources(value: LinkedSources): LinkedSources { if (!value || 
 export async function fetchLinkedSources(noteId: string): Promise<LinkedSources> { return readLinkedSources(await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds", { cache: "no-store" }, false)).json()); }
 export async function fetchLinkedPreview(noteId: string, sourceId: string): Promise<LinkedPreview> { const value = await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds/" + encodeURIComponent(sourceId), { cache: "no-store" }, false)).json(); if (!value || value.noteId !== sourceId || !["document", "whiteboard"].includes(value.type) || typeof value.content !== "string" || typeof value.title !== "string" || !Number.isSafeInteger(value.revision)) throw new Error("The source preview was invalid."); return value; }
 export async function updateLinkedSources(noteId: string, input: { action: "add" | "remove" | "review"; sourceId: string; expectedRevision: number; expectedSourceRevision?: number }): Promise<LinkedSources> { return readLinkedSources(await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, false)).json()); }
+
+export interface DiscussionMember { id: string; name: string; }
+export interface DiscussionPost { id: string; authorId: string; author: string; body: string; deleted: boolean; createdAt: string; editedAt?: string; mentions: DiscussionMember[]; }
+export interface Discussion { id: string; noteId: string; title: string; revision: number; resolved: boolean; canEdit: boolean; isOwner: boolean; members: DiscussionMember[]; posts: DiscussionPost[]; }
+export interface DiscussionList { entries: Array<{ id: string; noteId: string; title: string; revision: number; resolved: boolean; updatedAt: string; count: number; excerpt: string }>; nextCursor: string | null; canEdit: boolean; members: DiscussionMember[]; }
+export interface DiscussionAction { action: "create" | "reply" | "edit" | "delete-post" | "resolve" | "reopen" | "remove"; id: string; body: string; mentions: string[]; expectedRevision?: number; confirmation?: string; }
+const validMembers = (value: DiscussionMember[]) => Array.isArray(value) && value.every(member => member && typeof member.id === "string" && typeof member.name === "string");
+export async function fetchDiscussions(noteId: string, filter: string, cursor: string): Promise<DiscussionList> {
+  const query = new URLSearchParams({ filter }); if (noteId) query.set("noteId", noteId); if (cursor) query.set("cursor", cursor);
+  const value = await (await fetchData(env.SERVER_URL + "/api/notes/discussions?" + query, { cache: "no-store" }, false)).json();
+  if (!value || !Array.isArray(value.entries) || value.entries.length > 50 || typeof value.canEdit !== "boolean" || !validMembers(value.members) || (value.nextCursor !== null && typeof value.nextCursor !== "string") || value.entries.some((entry: DiscussionList["entries"][number]) => !entry || typeof entry.id !== "string" || typeof entry.noteId !== "string" || typeof entry.title !== "string" || typeof entry.excerpt !== "string")) throw new Error("The discussion inbox response was invalid.");
+  return value;
+}
+export async function fetchDiscussion(noteId: string, id: string): Promise<Discussion> {
+  const value = await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/discussions/" + encodeURIComponent(id), { cache: "no-store" }, false)).json();
+  if (!value || value.id !== id || value.noteId !== noteId || typeof value.title !== "string" || !Number.isSafeInteger(value.revision) || typeof value.resolved !== "boolean" || typeof value.canEdit !== "boolean" || typeof value.isOwner !== "boolean" || !validMembers(value.members) || !Array.isArray(value.posts) || value.posts.length > 50 || value.posts.some((post: DiscussionPost) => !post || typeof post.id !== "string" || typeof post.authorId !== "string" || typeof post.author !== "string" || typeof post.body !== "string" || typeof post.deleted !== "boolean" || !Number.isFinite(Date.parse(post.createdAt)) || !validMembers(post.mentions))) throw new Error("The discussion response was invalid.");
+  return value;
+}
+export async function changeDiscussion(noteId: string, id: string | undefined, input: DiscussionAction): Promise<{ id: string; removed: boolean }> {
+  const value = await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/discussions" + (id ? "/" + encodeURIComponent(id) : ""), { method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, false)).json();
+  if (!value || typeof value.id !== "string" || typeof value.removed !== "boolean") throw new Error("The comment response was invalid. Refresh before retrying."); return value;
+}

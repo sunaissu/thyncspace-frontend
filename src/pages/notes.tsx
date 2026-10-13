@@ -1,3 +1,4 @@
+import Discussions from "../components/discussions";
 import LinkedSources from "../components/linkedSources";
 import { cacheOfflineNote } from "../util/offlineLibrary";
 import ReminderCenter from "../components/reminderCenter";
@@ -100,6 +101,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [discussionsOpen, setDiscussionsOpen] = useState(false);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [offlineStatus, setOfflineStatus] = useState("");
   const cacheSelectedOffline = async () => {
@@ -413,7 +415,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               <button className="btn-ghost" type="button" disabled={!activeNote || !isOwner} onClick={() => setActivityOpen(true)}>Activity</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
-              <CommandPalette onSources={() => setSourcesOpen(true)} onOffline={() => void cacheSelectedOffline()} onReminders={() => setRemindersOpen(true)} onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
+              <CommandPalette onDiscussions={() => setDiscussionsOpen(true)} onSources={() => setSourcesOpen(true)} onOffline={() => void cacheSelectedOffline()} onReminders={() => setRemindersOpen(true)} onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
               <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
               <button
                 type="button"
@@ -442,6 +444,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
           {loggedInUser && <ReminderCenter key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} open={remindersOpen} onOpen={() => setRemindersOpen(true)} onClose={() => setRemindersOpen(false)} onOpenNote={closeOrSwitchNote} />}
           {attachmentsOpen && loggedInUser && <AttachmentLibrary key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} onOpenNote={closeOrSwitchNote} onClose={() => setAttachmentsOpen(false)} />}
+          {discussionsOpen && loggedInUser && <Discussions key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} onClose={() => setDiscussionsOpen(false)} onOpenNote={closeOrSwitchNote} />}
           {studyOpen && loggedInUser && <StudyTools key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?.type === "document" ? activeNote._id : undefined} onOpenNote={closeOrSwitchNote} onClose={() => setStudyOpen(false)} />}
           {activityOpen && activeNote && isOwner && <NoteActivity noteId={activeNote._id} title={activeNote.title} onClose={() => setActivityOpen(false)} />}
           {connectionsOpen && activeNote && <NoteConnections notes={notes} note={activeNote} onOpen={closeOrSwitchNote} onClose={() => setConnectionsOpen(false)} />}
@@ -732,6 +735,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
           <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
           <button type="button" disabled={!activeNote || !isOwner} onClick={() => openMobileTool(() => setActivityOpen(true))}>Activity</button>
+          <button type="button" onClick={() => openMobileTool(() => setDiscussionsOpen(true))}>Discussions and mentions</button>
           <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => setSourcesOpen(true))}>Linked sources</button>
           <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => void cacheSelectedOffline())}>Make selected note available offline</button>
           <a href="/offline-library/" target="_blank" rel="noopener noreferrer">Open offline library</a>
