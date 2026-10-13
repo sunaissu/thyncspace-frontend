@@ -22,3 +22,8 @@
 
 /theme-init.js
   Cache-Control: no-cache, no-store, must-revalidate
+
+/ocr/*
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'self'
+  Cache-Control: no-cache
