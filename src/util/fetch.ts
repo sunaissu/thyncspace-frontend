@@ -1,6 +1,6 @@
 import Router from "next/router";
 import env from "@/util/config";
-import type { Note } from "../model/note";
+import type { Note, LinkedSelection } from "../model/note";
 import type { User } from "../model/user";
 
 export class ApiError extends Error {
@@ -419,11 +419,11 @@ export async function saveOfflineSyncNote(account: string, id: string, text: str
 
 export interface LinkedSource { noteId: string; available: boolean; title: string; type?: "document" | "whiteboard"; sourceRevision?: number; reviewedRevision: number; stale: boolean; }
 export interface LinkedSources { revision: number; canEdit: boolean; entries: LinkedSource[]; }
-export interface LinkedPreview { noteId: string; title: string; type: "document" | "whiteboard"; content: string; revision: number; updatedAt: string; }
+export interface LinkedPreview { selection?: LinkedSelection | null; noteId: string; title: string; type: "document" | "whiteboard"; content: string; revision: number; updatedAt: string; }
 function readLinkedSources(value: LinkedSources): LinkedSources { if (!value || !Number.isSafeInteger(value.revision) || typeof value.canEdit !== "boolean" || !Array.isArray(value.entries) || value.entries.length > 20 || value.entries.some(entry => typeof entry?.noteId !== "string" || typeof entry.title !== "string" || typeof entry.available !== "boolean" || typeof entry.stale !== "boolean")) throw new Error("Linked sources could not be read. Refresh to try again."); return value; }
 export async function fetchLinkedSources(noteId: string): Promise<LinkedSources> { return readLinkedSources(await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds", { cache: "no-store" }, false)).json()); }
 export async function fetchLinkedPreview(noteId: string, sourceId: string): Promise<LinkedPreview> { const value = await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds/" + encodeURIComponent(sourceId), { cache: "no-store" }, false)).json(); if (!value || value.noteId !== sourceId || !["document", "whiteboard"].includes(value.type) || typeof value.content !== "string" || typeof value.title !== "string" || !Number.isSafeInteger(value.revision)) throw new Error("The source preview was invalid."); return value; }
-export async function updateLinkedSources(noteId: string, input: { action: "add" | "remove" | "review"; sourceId: string; expectedRevision: number; expectedSourceRevision?: number }): Promise<LinkedSources> { return readLinkedSources(await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, false)).json()); }
+export async function updateLinkedSources(noteId: string, input: { action: "add" | "remove" | "review" | "select"; selection?: LinkedSelection | null; sourceId: string; expectedRevision: number; expectedSourceRevision?: number }): Promise<LinkedSources> { return readLinkedSources(await (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(noteId) + "/embeds", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) }, false)).json()); }
 
 export interface DiscussionMember { id: string; name: string; }
 export interface DiscussionPost { id: string; authorId: string; author: string; body: string; deleted: boolean; createdAt: string; editedAt?: string; mentions: DiscussionMember[]; }

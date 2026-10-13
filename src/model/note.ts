@@ -16,11 +16,13 @@ export interface Collaborator {
   permission: PermissionLevel;
 }
 
+export type LinkedSelection = ({ kind: "lines"; start: number; end: number; revision: number } | { kind: "elements"; ids: string[]; revision: number }) & { needsReview?: true };
+
 export interface BaseNote {
   _id: string;
   contentRevision?: number;
   sharedNotebookId?: string | null;
-  linkedSources?: Array<{ noteId: string; sourceRevision: number }>;
+  linkedSources?: Array<{ noteId: string; sourceRevision: number; selection?: LinkedSelection | null }>;
   embedRevision?: number;
   isTemplate?: boolean;
   isArchived?: boolean;

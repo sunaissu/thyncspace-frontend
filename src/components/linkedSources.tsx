@@ -1,16 +1,33 @@
 import { useEffect, useRef, useState } from "react";
 import { MarkdownRenderer } from "@sunaissu/document-editor";
-import { Noteboard } from "@sunaissu/noteboard";
-import { sanitizeNoteboardElements, sanitizeNoteboardViewport, type Note } from "../model/note";
+import { Noteboard, exportBoardImage, type NoteboardRef } from "@sunaissu/noteboard";
+import { type Note, type LinkedSelection } from "../model/note";
 import { useTheme } from "../context/themeContext";
 import * as Api from "../util/fetch";
 
-function SourcePreview({ value }: { value: Api.LinkedPreview }) {
+import { readBoard, selectedContent, selectionDescription, sourceExport } from "../util/linkedSelection";
+import LinkedSelectionEditor from "./linkedSelectionEditor";
+
+function BoardSourcePreview({ board }: { board: ReturnType<typeof readBoard> }) {
   const { resolvedTheme } = useTheme();
-  if (value.type === "document") return <div className="linked-document-preview"><MarkdownRenderer content={value.content} openLinksInNewTab /></div>;
-  let board: { elements: ReturnType<typeof sanitizeNoteboardElements>; viewport: ReturnType<typeof sanitizeNoteboardViewport> } | null = null;
-  try { const raw = JSON.parse(value.content), elements = sanitizeNoteboardElements(raw?.elements); if (Array.isArray(raw?.elements) && elements.length === raw.elements.length) board = { elements, viewport: sanitizeNoteboardViewport(raw.viewport) }; } catch { /* Preserve a visible error for malformed source content. */ }
-  return board ? <div className="linked-board-preview"><Noteboard key={value.noteId + ":" + value.revision} elements={board.elements} initialViewport={board.viewport} readOnly theme={resolvedTheme} /></div> : <p role="alert">This board could not be previewed. Open the source to inspect it.</p>;
+  const container = useRef<HTMLDivElement>(null), instance = useRef<NoteboardRef>(null);
+  const ids = JSON.stringify(board.elements.filter(element => !element.isDeleted).map(element => element.id));
+  useEffect(() => {
+    const node = container.current; if (!node) return;
+    let frame = 0, nextFrame = 0;
+    const frameContent = () => { cancelAnimationFrame(frame); cancelAnimationFrame(nextFrame); frame = requestAnimationFrame(() => { nextFrame = requestAnimationFrame(() => instance.current?.focusElements(JSON.parse(ids))); }); };
+    const observer = new ResizeObserver(frameContent); observer.observe(node); frameContent();
+    return () => { observer.disconnect(); cancelAnimationFrame(frame); cancelAnimationFrame(nextFrame); };
+  }, [ids]);
+  return <div className="linked-board-preview" ref={container}><Noteboard elements={board.elements} initialViewport={board.viewport} ref={instance} readOnly theme={resolvedTheme} /></div>;
+}
+function SourcePreview({ value }: { value: Api.LinkedPreview }) {
+  const focusKey = value.noteId + ":" + value.revision + ":" + JSON.stringify(value.selection);
+  let content: string;
+  try { content = selectedContent(value); } catch (error) { return <p role="alert">{error instanceof Error ? error.message : "Refresh this selection."}</p>; }
+  if (value.type === "document") return <div className="linked-document-preview"><MarkdownRenderer content={content} openLinksInNewTab /></div>;
+  let board; try { board = readBoard(content); } catch { return <p role="alert">This board could not be previewed. Open the source to inspect it.</p>; }
+  return <BoardSourcePreview key={focusKey} board={board} />;
 }
 export default function LinkedSources({ note, notes, requestedOpen, onClose, onOpenNote }: { note: Note; notes: Note[]; requestedOpen: boolean; onClose: () => void; onOpenNote: (id: string) => void }) {
   const [data, setData] = useState<Api.LinkedSources | null>(null), [expanded, setExpanded] = useState(false), [sourceId, setSourceId] = useState(""), [previewId, setPreviewId] = useState("");
@@ -33,10 +50,23 @@ export default function LinkedSources({ note, notes, requestedOpen, onClose, onO
     void load(); const timer = setInterval(() => void load(), 30000);
     return () => { current = false; clearInterval(timer); };
   }, [note._id, previewId, accessible, isOpen, refresh]);
-  const change = async (action: "add" | "remove" | "review", source: string) => {
+  const change = async (action: "add" | "remove" | "review" | "select", source: string, selection?: LinkedSelection | null) => {
     if (!data || busy) return; setBusy(true); setError(""); generation.current++;
-    try { const value = await Api.updateLinkedSources(note._id, { action, sourceId: source, expectedRevision: data.revision, expectedSourceRevision: preview?.revision }); if (active.current) { setData(previous => previous && previous.revision > value.revision ? previous : value); if (action === "add") { setPreviewId(source); setSourceId(""); } if (action === "remove" && source === previewId) { setPreviewId(""); setPreview(null); } } }
+    try { const value = await Api.updateLinkedSources(note._id, { action, selection, sourceId: source, expectedRevision: data.revision, expectedSourceRevision: preview?.revision }); if (active.current) { setData(previous => previous && previous.revision > value.revision ? previous : value); if (action === "select") setRefresh(value => value + 1); if (action === "add") { setPreviewId(source); setSourceId(""); } if (action === "remove" && source === previewId) { setPreviewId(""); setPreview(null); } } }
     catch (error) { if (active.current) setError(error instanceof Error ? error.message : "Could not update linked sources."); }
+    finally { if (active.current) setBusy(false); }
+  };
+  const exportPreview = async () => {
+    if (!preview || busy) return; setBusy(true); setError("");
+    try {
+      const current = await Api.fetchLinkedPreview(note._id, preview.noteId);
+      const content = selectedContent(current);
+      const image = current.type === "whiteboard" ? await exportBoardImage(readBoard(content).elements, "png") : undefined;
+      const checked = await Api.fetchLinkedPreview(note._id, current.noteId);
+      if (checked.revision !== current.revision || JSON.stringify(checked.selection) !== JSON.stringify(current.selection)) throw new Error("The source changed during export. Refresh and try again.");
+      const url = URL.createObjectURL(new Blob([sourceExport(current, window.location.origin, image)], { type: "text/html;charset=utf-8" }));
+      const link = document.createElement("a"); link.href = url; link.download = "thyncspace-linked-source.html"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) { if (active.current) setError(error instanceof Error ? error.message : "Could not export this source."); }
     finally { if (active.current) setBusy(false); }
   };
   if (!isOpen && !data?.entries.length && !note.linkedSources?.length) return null;
@@ -46,7 +76,7 @@ export default function LinkedSources({ note, notes, requestedOpen, onClose, onO
       {error && <p role="alert">{error}</p>}{!data && !error && <p role="status">Loading linked sources…</p>}
       {data?.canEdit && <form className="linked-source-add" onSubmit={event => { event.preventDefault(); void change("add", sourceId); }}><label>Source to link<select aria-label="Source to link" value={sourceId} disabled={busy} onChange={event => setSourceId(event.target.value)}><option value="">Choose a document or board</option>{notes.filter(source => source._id !== note._id && !data.entries.some(entry => entry.noteId === source._id)).map(source => <option key={source._id} value={source._id}>{source.title} · {source.type}</option>)}</select></label><button type="submit" className="btn-primary" disabled={busy || !sourceId || data.entries.length >= 20}>Link source</button></form>}
       <div className="linked-source-list">{data?.entries.map(entry => <article key={entry.noteId}><strong>{entry.title}</strong><span>{entry.available ? entry.stale ? "Source changed since last reviewed" : "Reviewed source revision" : "Source unavailable or access removed"}</span><div><button type="button" className="btn-ghost" disabled={!entry.available || busy} onClick={() => setPreviewId(entry.noteId)}>Preview source</button><button type="button" className="btn-ghost" disabled={!entry.available || busy} onClick={() => onOpenNote(entry.noteId)}>Open source</button>{data.canEdit && <button type="button" className="btn-ghost" disabled={busy} onClick={() => void change("remove", entry.noteId)}>Unlink source</button>}</div></article>)}</div>
-      {previewId && <div ref={previewRef} className="linked-source-preview">{!accessible ? <p>This source is currently unavailable.</p> : preview?.noteId === previewId ? <><div className="linked-preview-header"><h3>{preview.title} · current preview</h3>{data?.canEdit && <button type="button" className="btn-ghost" disabled={busy} onClick={() => void change("review", previewId)}>Mark this revision reviewed</button>}<button type="button" className="btn-ghost" onClick={() => setPreviewId("")}>Close preview</button></div><SourcePreview value={preview} /></> : previewError ? <p role="alert">{previewError}</p> : <p role="status">Loading source preview…</p>}</div>}
+      {previewId && <div ref={previewRef} className="linked-source-preview">{!accessible ? <p>This source is currently unavailable.</p> : preview?.noteId === previewId ? <><div className="linked-preview-header"><h3>{preview.title} · current preview</h3>{data?.canEdit && <button type="button" className="btn-ghost" disabled={busy} onClick={() => void change("review", previewId)}>Mark this revision reviewed</button>}<button type="button" className="btn-ghost" onClick={() => setPreviewId("")}>Close preview</button></div><p>{selectionDescription(preview.selection)}</p>{data?.canEdit && <LinkedSelectionEditor key={preview.noteId + ":" + preview.revision + ":" + JSON.stringify(preview.selection)} value={preview} busy={busy} onSave={selection => change("select", previewId, selection)} />}<SourcePreview value={preview} /><p>Static exports contain source content and remain readable after access is removed. Share the downloaded file only with intended recipients.</p><button type="button" className="btn-ghost" disabled={busy || Boolean(preview.selection && (preview.selection.needsReview || preview.selection.revision !== preview.revision))} onClick={() => void exportPreview()}>Download static source</button></> : previewError ? <p role="alert">{previewError}</p> : <p role="status">Loading source preview…</p>}</div>}
       {data && !data.entries.length && <p>No linked sources yet. You can link up to 20 documents or boards.</p>}
     </div>}
   </section>;

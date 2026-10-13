@@ -4797,3 +4797,13 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .new-note-dialog-header { position: sticky; top: 0; z-index: 1; background: var(--color-surface); }
 
 .service-page a { text-decoration: underline; text-underline-offset: .18em; }
+
+.linked-selection-editor { padding: .75rem; border: 1px solid var(--color-border); border-radius: .5rem; margin: .75rem 0; }
+.linked-selection-editor summary { cursor: pointer; font-weight: 600; }
+.linked-selection-editor label { display: flex; flex-direction: column; gap: .4rem; min-width: 0; }
+.linked-selection-fields, .linked-selection-actions { display: flex; gap: .75rem; flex-wrap: wrap; margin: .75rem 0; }
+.linked-selection-fields input { width: 7rem; max-width: 100%; }
+.linked-selection-editor pre, .linked-object-options { max-height: 15rem; overflow: auto; overscroll-behavior: contain; margin: .75rem 0; }
+.linked-selection-editor pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.linked-object-options label { display: flex; flex-direction: row; align-items: flex-start; padding: .5rem 0; overflow-wrap: anywhere; }
+.linked-object-options input { flex-shrink: 0; margin-top: .2rem; }
