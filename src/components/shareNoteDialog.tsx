@@ -185,6 +185,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
           </button>
         </header>
 
+        {note.sharedNotebookId && <p role="status">This note inherits its notebook membership. Use Commands → Shared notebooks to manage access or detach the note first.</p>}
         <p id="share-identity-help">Use a username you have confirmed with your teammate, or an email they have verified in Account security.</p>
         <form className="share-note-form" onSubmit={addCollaborator}>
           <label>
@@ -196,7 +197,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               onChange={(event) => setIdentifier(event.target.value)}
               aria-describedby="share-identity-help"
               placeholder="teammate@example.com"
-              disabled={saving}
+              disabled={saving || Boolean(note.sharedNotebookId)}
             />
           </label>
           <label>
@@ -207,7 +208,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               onChange={(event) =>
                 setPermission(event.target.value as "viewer" | "editor")
               }
-              disabled={saving}
+              disabled={saving || Boolean(note.sharedNotebookId)}
             >
               <option value="editor">Can edit</option>
               <option value="viewer">Can view</option>
@@ -216,7 +217,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
           <button
             type="submit"
             className="new-note-button"
-            disabled={!identifier.trim() || saving}
+            disabled={!identifier.trim() || saving || Boolean(note.sharedNotebookId)}
           >
             {saving ? (
               <SpinnerBallIcon className="spin" size={17} />
@@ -257,7 +258,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                         event.target.value as "viewer" | "editor",
                       )
                     }
-                    disabled={saving}
+                    disabled={saving || Boolean(note.sharedNotebookId)}
                     aria-label={`Access for ${collaborator.username}`}
                   >
                     <option value="editor">Can edit</option>
@@ -267,7 +268,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
                     type="button"
                     className="icon-button danger-on-hover"
                     onClick={() => removeCollaborator(collaborator)}
-                    disabled={saving}
+                    disabled={saving || Boolean(note.sharedNotebookId)}
                     title="Remove access"
                     aria-label={`Remove ${collaborator.username}`}
                   >

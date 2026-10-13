@@ -276,3 +276,11 @@ Note recovery preserves the host's current references, with source permissions c
 Open Commands → Discussions and mentions, or use the mobile tools menu. Choose a note or the inbox across notes, then filter unresolved discussions, mentions, replies, or all threads. Editors can post, reply, edit/delete their own comments, and resolve/reopen discussions. The note owner can permanently remove a whole thread. Viewers can read. Names come from current accounts; mentions appear in the recipient's inbox without sending email.
 
 The dialog refreshes every 30 seconds and has an explicit refresh control. Failed writes retain drafts. Comment edits keep the revision loaded when editing began so another tab's edit cannot be silently replaced. Navigation warns before discarding a draft. If access disappears, the draft remains available to copy. Limits are 100 threads per note, 50 comments per thread, 4,000 characters per comment, and 10 mentions. Run npm run test:discussions for the browser regression.
+
+### Shared notebooks
+
+Open Commands → Shared notebooks, or use the mobile tools menu. Owners can create/rename a notebook, add saved private documents or boards, and manage viewer/editor membership. A note inherits the notebook's membership until detached. Per-note sharing controls explain this and remain disabled for attached notes. Your private folder labels and calculator contents remain private.
+
+Wait for open notes to show Saved before changing access. Membership changes apply to all contained notes and require confirmation. Detaching makes a note private; deleting a notebook keeps its notes and makes them private. Trashed notes recover privately. Changes use revision checks; Refresh notebooks loads the current state after a conflict. Live role changes update editor controls and note access labels. Switching between private and live modes loads the latest committed content and revision rather than seeding a private editor from stale metadata.
+
+Limits: 20 owned notebooks, 100 notes and 100 members per notebook, with 50 notebooks per list page. Run npm run test:notebooks for UI behavior and responsive layouts, and npm run test:presence for real two-person collaboration with inherited roles.

@@ -31,7 +31,8 @@
     "test:reminders": "node scripts/reminders-review.cjs",
     "test:offline": "node scripts/offline-review.cjs",
     "test:embeds": "node scripts/embeds-review.cjs",
-    "test:discussions": "node scripts/discussions-review.cjs"
+    "test:discussions": "node scripts/discussions-review.cjs",
+    "test:notebooks": "node scripts/notebooks-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

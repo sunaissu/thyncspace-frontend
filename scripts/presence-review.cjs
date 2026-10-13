@@ -21,7 +21,12 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
   await mongoose.connect(replica.getUri(), { dbName: 'disposable_presence_review' });
   const alice = await User.create({ username: 'Alice', email: 'alice@example.test' });
   const bob = await User.create({ username: 'Bob', email: 'bob@example.test' });
-  let note = await Note.create({ owner: alice._id, title: 'Presence review', type: 'document', content: 'Shared document', sharedWith: [{ userId: bob._id, permission: 'editor' }] });
+  const { default: Notebook } = await load('models/sharedNotebook.model.js'), notebooks = await load('controller/sharedNotebooks.js'); await Notebook.init();
+  const invokeNotebook = async (handler, params, body) => { let value, error; const res = { status() { return this; }, json(data) { value = data; return this; } }; await handler({ user: { id: alice.id }, params, body, query: {} }, res, failure => { error = failure; }); if (error) throw error; return value; };
+  const book = await invokeNotebook(notebooks.createNotebook, {}, { id: require('node:crypto').randomUUID(), name: 'Presence notebook' });
+  const changeBook = async body => invokeNotebook(notebooks.changeNotebook, { notebookId: book.id }, { ...body, expectedRevision: (await Notebook.findById(book.id)).revision });
+  let note = await Note.create({ owner: alice._id, title: 'Presence review', type: 'document', content: 'Shared document' });
+  await changeBook({ action: 'attach', noteId: note.id, expectedContentRevision: 0 }); await changeBook({ action: 'member', identifier: 'Bob', permission: 'editor' });
   attachCollaborationServer(server); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined), headless: true });
   const devices = new Map();
@@ -96,6 +101,16 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
   await b.getByRole('textbox', { name: 'Markdown source' }).press('End');
   await b.getByRole('textbox', { name: 'Markdown source' }).pressSequentially(' and Bob replied');
   await expect(a.getByRole('textbox', { name: 'Markdown source' })).toHaveValue('Alice wrote this and Bob replied');
+  await changeBook({ action: 'member', memberId: bob.id, permission: 'viewer' });
+  await expect(b.getByRole('textbox', { name: 'Markdown source' })).toHaveCount(0);
+  await expect(b.locator('.document-workspace')).toContainText('Alice wrote this and Bob replied');
+  expect(collaborationServer.documents.get(note.id).getConnections().filter(connection => connection.context.userId === bob.id).every(connection => connection.readOnly)).toBe(true);
+  await changeBook({ action: 'member', memberId: bob.id, permission: 'editor' });
+  await b.getByRole('button', { name: 'Markdown', exact: true }).click();
+  await expect(b.getByRole('textbox', { name: 'Markdown source' })).not.toHaveAttribute('readonly', '');
+  await changeBook({ action: 'remove-member', memberId: bob.id });
+  await expect.poll(() => collaborationServer.documents.get(note.id)?.getConnections().filter(connection => connection.context.userId === bob.id).length ?? 0).toBe(0);
+  expect((await Note.findById(note.id)).content).toBe('Alice wrote this and Bob replied');
   await a.close(); await b.close();
   note = await Note.create({ owner: alice._id, title: 'Shared canvas', type: 'whiteboard', content: JSON.stringify({ elements: [], viewport: { panX: 0, panY: 0, zoom: 1 } }), sharedWith: [{ userId: bob._id, permission: 'editor' }] });
   const ba = await open(ca), bb = await open(cb);
@@ -123,7 +138,7 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
   await expect(assertActiveDeviceSession(bobDevice.sessionHash, bob.id)).rejects.toThrow('Session expired');
   expect(collaborationServer.documents.get(note.id).getConnections().some(connection => connection.context.userId === alice.id)).toBe(true);
   await ca.close(); await cb.close(); await browser.close(); browser = null;
-  console.log('Two authenticated accounts: document/board cursor names, distinct sessions/colors, same-account tabs, disconnect cleanup, private calculator, shared edits, local viewport, and targeted remote sign-out passed.');
+  console.log('Two authenticated accounts: document/board cursor names, distinct sessions/colors, same-account tabs, disconnect cleanup, private calculator, shared edits, local viewport, notebook role changes and removal, and targeted remote sign-out passed.');
  } finally {
   if (browser) await browser.close();
   for (const socket of connections) socket.terminate();

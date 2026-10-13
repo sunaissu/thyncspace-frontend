@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { noteMatchesSearch, type Note } from "../model/note";
 
-export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary, onImport, onStudy, onAttachments, onReminders, onOffline, onSources, onDiscussions }: {
-  notes: Note[]; onOpenNote: (id: string) => void; onNewNote: () => void; onLibrary: () => void; onImport: () => void; onStudy?: () => void; onAttachments?: () => void; onReminders?: () => void; onOffline?: () => void; onSources?: () => void; onDiscussions?: () => void;
+export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary, onImport, onStudy, onAttachments, onReminders, onOffline, onSources, onDiscussions, onNotebooks }: {
+  notes: Note[]; onOpenNote: (id: string) => void; onNewNote: () => void; onLibrary: () => void; onImport: () => void; onStudy?: () => void; onAttachments?: () => void; onReminders?: () => void; onOffline?: () => void; onSources?: () => void; onDiscussions?: () => void; onNotebooks?: () => void;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -19,7 +19,7 @@ export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary
     return () => window.removeEventListener("keydown", key);
   }, []);
   const run = (action: () => void) => { dialog.current?.close(); action(); };
-  const actions = [...(onDiscussions ? [{ label: "Discussions and mentions", run: onDiscussions }] : []), { label: "Create a note", run: onNewNote }, { label: "Organize notes and recover trash", run: onLibrary }, { label: "Import Markdown", run: onImport }, ...(onSources ? [{ label: "Linked sources", run: onSources }] : []), ...(onOffline ? [{ label: "Make selected note available offline", run: onOffline }, { label: "Open offline library", run: () => window.open("/offline-library/", "_blank", "noopener,noreferrer") }] : []), ...(onReminders ? [{ label: "Reminders", run: onReminders }] : []), ...(onAttachments ? [{ label: "Attachments", run: onAttachments }] : []), ...(onStudy ? [{ label: "Study tools", run: onStudy }] : [])].filter(action => action.label.toLowerCase().includes(query.toLowerCase()));
+  const actions = [...(onNotebooks ? [{ label: "Shared notebooks", run: onNotebooks }] : []), ...(onDiscussions ? [{ label: "Discussions and mentions", run: onDiscussions }] : []), { label: "Create a note", run: onNewNote }, { label: "Organize notes and recover trash", run: onLibrary }, { label: "Import Markdown", run: onImport }, ...(onSources ? [{ label: "Linked sources", run: onSources }] : []), ...(onOffline ? [{ label: "Make selected note available offline", run: onOffline }, { label: "Open offline library", run: () => window.open("/offline-library/", "_blank", "noopener,noreferrer") }] : []), ...(onReminders ? [{ label: "Reminders", run: onReminders }] : []), ...(onAttachments ? [{ label: "Attachments", run: onAttachments }] : []), ...(onStudy ? [{ label: "Study tools", run: onStudy }] : [])].filter(action => action.label.toLowerCase().includes(query.toLowerCase()));
   const matches = notes.filter(note => noteMatchesSearch(note, query)).slice(0, 50);
   return <>
     <button className="btn-ghost" type="button" title="Commands (Ctrl/⌘ Shift P)" onClick={show}>Commands</button>

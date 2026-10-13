@@ -100,7 +100,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     !requestedReadOnly,
     note.type,
   );
-  const readOnly = requestedReadOnly || (!collaboration.local && collaboration.status !== "synced");
+  const readOnly = (collaboration.local || collaboration.permission === null ? requestedReadOnly : collaboration.permission !== "editor") || (!collaboration.local && collaboration.status !== "synced");
   const [initialDocumentContent] = useState(() =>
     note.type === NoteType.Document ? note.content : "",
   );
@@ -125,6 +125,11 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
   const { notes, setNotes } = useContext(NoteContext);
+  useEffect(() => {
+    const permission = collaboration.permission;
+    if (!permission || !user || note.owner === user._id) return;
+    setNotes(current => current.map(item => item._id === note._id && item.sharedWith.some(member => member.userId === user._id && member.permission !== permission) ? { ...item, sharedWith: item.sharedWith.map(member => member.userId === user._id ? { ...member, permission } : member) } : item));
+  }, [collaboration.permission, note._id, note.owner, user, setNotes]);
   const {
     preference,
     resolvedTheme,

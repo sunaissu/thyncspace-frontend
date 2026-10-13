@@ -71,8 +71,10 @@ export function useNoteCollaboration(
     () => new Y.Doc({ guid: enabled ? noteId : `${noteId}:private` }),
     [enabled, noteId],
   );
+  const [permission, setPermission] = useState<"editor" | "viewer" | null>(null);
+  const [recoveryEnabled, setRecoveryEnabled] = useState(canEdit);
   const { durability, receiveReceipt } = useDurableStore(document, noteType);
-  const liveDraft = useLiveDraft(document, user?._id, noteId, enabled && canEdit, durability === "stored");
+  const liveDraft = useLiveDraft(document, user?._id, noteId, enabled && recoveryEnabled, durability === "stored");
   const persistLiveDraft = liveDraft.persist;
   const liveDraftReady = liveDraft.ready;
   const lifecycle = useMemo<DocumentLifecycle>(
@@ -103,6 +105,7 @@ export function useNoteCollaboration(
     if (data.payload.length > 512) return;
     try {
       const identity = JSON.parse(data.payload);
+      if (identity.type === "note-permission" && ["editor", "viewer"].includes(identity.permission)) { setPermission(identity.permission); if (identity.permission === "editor") setRecoveryEnabled(true); }
       if (identity.type === "presence-identity" && identity.id === userId && identity.clientId === document.clientID && typeof identity.name === "string" && /^#[0-9a-f]{6}$/i.test(identity.color)) {
         providerRef.current?.setAwarenessField("user", { id: userId, name: identity.name.slice(0, 80), color: identity.color });
       }
@@ -163,6 +166,7 @@ export function useNoteCollaboration(
       token: () => NotesApi.getCollaborationToken(noteId),
       flushDelay: 80,
       onStateless: handleStateless,
+      onAuthenticated: ({ scope }) => { if (active) { setPermission(scope === "read-write" ? "editor" : "viewer"); if (scope === "read-write") setRecoveryEnabled(true); } },
       onStatus: ({ status: websocketStatus }) => {
         if (!active || failed) return;
         if (websocketStatus === WebSocketStatus.Connected) {
@@ -264,17 +268,18 @@ export function useNoteCollaboration(
   }, [lifecycle]);
 
   useEffect(() => {
-    if (!enabled || !canEdit || (unsyncedChanges === 0 && durability === "stored")) return;
+    if (!enabled || !recoveryEnabled || (unsyncedChanges === 0 && durability === "stored")) return;
     const warnBeforeExit = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = "";
     };
     window.addEventListener("beforeunload", warnBeforeExit);
     return () => window.removeEventListener("beforeunload", warnBeforeExit);
-  }, [enabled, canEdit, unsyncedChanges, durability]);
+  }, [enabled, recoveryEnabled, unsyncedChanges, durability]);
 
   return {
     document,
+    permission,
     clientId: document.clientID,
     publishCursor,
     durability,
