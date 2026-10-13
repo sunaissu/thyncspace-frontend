@@ -1,3 +1,4 @@
+import type { NoteTemplate } from "../util/technicalTemplates";
 import CompanionConnections from "../components/companionConnections";
 import WorkspaceArchive from "../components/workspaceArchive";
 import PassageAi from "../components/passageAi";
@@ -217,7 +218,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     }
   };
 
-  const handleCreateNote = async (type: NoteType, template?: Note) => {
+  const handleCreateNote = async (type: NoteType, template?: NoteTemplate) => {
     try {
       const newNote = (await NotesApi.createNotes({
         title: template ? `${template.title.slice(0, 190)} copy` : "Untitled Note",

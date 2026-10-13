@@ -1,3 +1,4 @@
+import { technicalTemplates, type NoteTemplate } from "../util/technicalTemplates";
 import {
   ArrowRightIcon,
   FileTextIcon,
@@ -11,7 +12,7 @@ import { NoteType, type Note } from "../model/note";
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (type: NoteType, template?: Note) => Promise<void> | void;
+  onSave: (type: NoteType, template?: NoteTemplate) => Promise<void> | void;
   templates?: Note[];
   defaultType?: NoteType;
 }
@@ -69,7 +70,7 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave, templates 
     }
   };
 
-  const addNote = async (type: NoteType, template?: Note) => {
+  const addNote = async (type: NoteType, template?: NoteTemplate) => {
     if (loadingType) return;
     setLoadingType(type);
     setError("");
@@ -167,6 +168,7 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave, templates 
           </button>
         </div>
 
+        <section className="note-template-picker" aria-label="Technical starter templates"><h3>Technical starters</h3><p>Preview a structure, then create an independent private document.</p><div className="technical-template-list">{technicalTemplates.map(template => <details key={template.title}><summary>{template.title}</summary><pre aria-label={template.title + " preview"}>{String(template.content)}</pre><button className="btn-ghost" type="button" disabled={Boolean(loadingType)} onClick={() => void addNote(template.type, template)}>Use {template.title}</button></details>)}</div></section>
         <section className="note-template-picker" aria-label="Your templates">
           <h3>Your templates</h3>
           {templates.length ? <>

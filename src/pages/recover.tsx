@@ -16,7 +16,7 @@ export default function Recover() {
       <label>Email<input type="email" autoComplete="email" required maxLength={254} value={email} onChange={event => setEmail(event.target.value)} /></label>
       <AuthChallenge siteKey={policy?.turnstileSiteKey ?? ""} action="recover" reset={challengeReset} onToken={setBotToken} />
       <button type="submit" className="btn-primary" disabled={busy || blocked || !email.trim()}>{busy ? "Requesting…" : "Send recovery link"}</button>
-    </form><Link href="/login/">Back to sign-in</Link>
+    </form><p><Link href="/service/">Service status and support</Link></p><Link href="/login/">Back to sign-in</Link>
     {status && <p role="status">{status}</p>}{error && <p role="alert">{error}</p>}
   </main>;
 }

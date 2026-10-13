@@ -310,3 +310,10 @@ Open Commands > Obsidian companion, or use the mobile workspace tools, to create
 Sign-in, registration and recovery load the backend authentication policy before enabling local submission. Closed registration has an explicit message and leaves existing-account sign-in available. Optional Turnstile challenges load only when configured, carry the correct action, and reset after each request or expiry. Failed policy/widget loading has a retry action. Forms now associate every visible label with its input and fit 320px screens. Run npm run test:auth-policy for the mocked-widget regression and npm run test:security for account recovery.
 
 When verified-email access is enabled on the backend, unverified accounts see a verification prompt before the online workspace. Account security and account privacy remain reachable. Check verification again refreshes the authenticated profile after completing the email link.
+
+
+### Technical starters and service information
+
+New note includes eight previewable Markdown structures: engineering design log, lab notebook entry, worked problem, architecture decision record, debugging investigation, lecture/review notes, experiment record, and project calculation sheet. Use a starter creates an independent private document through the normal note API. The calculation sheet does not import calculator state. Your saved document/board templates remain in their own section. The dialog scrolls internally and keeps its close control available.
+
+/service/ is public and remains usable if session verification fails. It shows the latest API/database connection status, a configured incident notice, support/abuse and policy links, data controls and an operator-supplied retention statement. It marks status-check failures and retains the last timestamp. It does not infer provider health or invent missing policies. Links are HTTPS only, notices are plain text, and the page sends no credentials for its status request. Run npm run test:foundation for service failure handling, hostile text/links, private starter creation and mobile layout.

@@ -290,7 +290,7 @@ const Login: React.FC = () => {
             >
               {loading ? "Logging in…" : "Log In →"}
             </button>
-          </form>
+          </form><p><Link href="/service/">Service status and support</Link></p>
 
           <p style={{ marginTop: "1rem" }}><Link href="/recover/">Forgot your password?</Link></p>
           {/* Divider */}

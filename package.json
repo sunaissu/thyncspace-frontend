@@ -36,7 +36,8 @@
     "test:ai": "node scripts/ai-review.cjs",
     "test:archive": "node scripts/archive-review.cjs",
     "test:companion": "node scripts/companion-review.cjs",
-    "test:auth-policy": "node scripts/auth-policy-review.cjs"
+    "test:auth-policy": "node scripts/auth-policy-review.cjs",
+    "test:foundation": "node scripts/foundation-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

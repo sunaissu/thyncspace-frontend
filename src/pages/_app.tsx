@@ -88,6 +88,8 @@ export default function App({ Component, pageProps }: AppProps) {
   // treats those copies as a server-authenticated session.
   if (router.pathname === "/offline-library") return <ThemeProvider><Component {...pageProps} /></ThemeProvider>;
 
+  if (router.pathname === "/service") return <ThemeProvider><Navbar loggedInUser={loggedInUser} onLogout={handleLogout} /><Component {...pageProps} /></ThemeProvider>;
+
   if (authError) {
     return (
       <ThemeProvider>

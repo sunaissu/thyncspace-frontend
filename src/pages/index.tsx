@@ -312,6 +312,7 @@ export default function Home({ loggedInUser }: HomeProps) {
         >
           © 2023 · ALL RIGHTS RESERVED
         </p>
+        <p><Link href="/service/">Service status, support and policies</Link></p>
       </footer>
     </div>
   );

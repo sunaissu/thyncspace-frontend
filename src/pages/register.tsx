@@ -335,7 +335,7 @@ const SignUp: React.FC = () => {
             >
               {loading ? "Creating account…" : "Create Account →"}
             </button>
-          </form>
+          </form><p><Link href="/service/">Service status and support</Link></p>
 
           {/* Divider */}
           <div className="divider" />

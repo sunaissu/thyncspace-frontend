@@ -51,6 +51,7 @@ const Navbar: React.FC<Props> = ({ loggedInUser, onLogout }) => {
               <Link href="/settings">
                 <GearIcon size={17} weight="bold" /> Settings
               </Link>
+              <Link href="/service/">Service and support</Link>
               <button type="button" onClick={onLogout}>
                 <SignOutIcon weight="bold" size={17} /> Log out
               </button>
