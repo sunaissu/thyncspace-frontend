@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { reviewVaultImport } from "../util/vaultPreview";
 import {
   ArrowSquareOutIcon,
   CheckCircleIcon,
@@ -76,6 +77,10 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
   onClose,
   onImport,
 }) => {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const readGeneration = useRef({ generation: 0 });
+  const [pending, setPending] = useState<ImportedMarkdownNote[]>([]);
+  const [issues, setIssues] = useState<ReturnType<typeof reviewVaultImport>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [vaultName, setVaultName] = useState("");
@@ -85,20 +90,17 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
   useEffect(() => {
     if (!open) return;
     setVaultName(getStoredVaultName());
+    setPending([]); setIssues([]); setBusy(false); setStatus("");
+    const lifecycle = readGeneration.current;
+    const previous = document.activeElement as HTMLElement | null;
+    const dialog = dialogRef.current;
+    dialog?.showModal();
     if (folderInputRef.current) {
       folderInputRef.current.setAttribute("webkitdirectory", "");
       folderInputRef.current.setAttribute("directory", "");
     }
+    return () => { lifecycle.generation++; dialog?.close(); previous?.focus(); };
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [open, onClose]);
 
   if (!open) return null;
 
@@ -106,8 +108,9 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return;
+    const generation = ++readGeneration.current.generation;
     setBusy(true);
-    setStatus("");
+    setPending([]); setIssues([]); setStatus("");
     try {
       const markdownFiles = Array.from(files).filter((file) =>
         file.name.toLowerCase().endsWith(".md"),
@@ -118,6 +121,7 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
       const imported: ImportedMarkdownNote[] = [];
       let totalBytes = 0;
       for (const file of markdownFiles) {
+        if (generation !== readGeneration.current.generation) return;
         totalBytes += file.size;
         if (file.size > 1024 * 1024 || totalBytes > MAX_IMPORT_BYTES) {
           throw new Error("The selected Markdown import is too large.");
@@ -130,21 +134,37 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
             file.name,
         });
       }
+      if (generation !== readGeneration.current.generation) return;
       if (imported.length === 0) {
         setStatus("No Markdown files were found.");
         return;
       }
-      await onImport(imported);
-      setStatus(
-        `Imported ${imported.length} Markdown ${imported.length === 1 ? "note" : "notes"}.`,
-      );
+      if (generation !== readGeneration.current.generation) return;
+      setPending(imported);
+      setIssues(reviewVaultImport(imported, notes, Array.from(files).map(file => file.webkitRelativePath || file.name)));
+      setStatus("Review the selected files before importing. Existing notes will stay unchanged.");
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Import failed.");
+      if (generation === readGeneration.current.generation) setStatus(error instanceof Error ? error.message : "Import failed.");
     } finally {
-      setBusy(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      if (folderInputRef.current) folderInputRef.current.value = "";
+      if (generation === readGeneration.current.generation) {
+        setBusy(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        if (folderInputRef.current) folderInputRef.current.value = "";
+      }
     }
+  };
+
+  const confirmImport = async () => {
+    if (!pending.length || busy) return;
+    const generation = readGeneration.current.generation;
+    setBusy(true); setStatus("");
+    try {
+      await onImport(pending);
+      if (generation !== readGeneration.current.generation) return;
+      setStatus(`Imported ${pending.length} Markdown notes as private copies.`);
+      setPending([]); setIssues([]);
+    } catch (error) { if (generation === readGeneration.current.generation) setStatus(error instanceof Error ? error.message : "Import failed. The preview remains available."); }
+    finally { if (generation === readGeneration.current.generation) setBusy(false); }
   };
 
   const openInObsidian = () => {
@@ -231,10 +251,10 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
   };
 
   return (
-    <div className="obsidian-backdrop" onMouseDown={(event) => {
+    <dialog ref={dialogRef} className="obsidian-backdrop" aria-label="Obsidian bridge" onCancel={event => { event.preventDefault(); onClose(); }} onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <aside className="obsidian-drawer" aria-modal="true" role="dialog" aria-label="Obsidian bridge">
+      <aside className="obsidian-drawer">
         <header className="obsidian-header">
           <div className="obsidian-mark" aria-hidden="true">
             <span>O</span>
@@ -277,7 +297,6 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
               ref={folderInputRef}
               className="sr-only"
               type="file"
-              accept=".md,text/markdown"
               multiple
               onChange={(event) => handleFiles(event.target.files)}
             />
@@ -290,6 +309,15 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
               onChange={(event) => handleFiles(event.target.files)}
             />
           </section>
+
+          {pending.length > 0 && <section className="vault-import-review" aria-label="Vault import preview">
+            <h3>Review {pending.length} Markdown files</h3>
+            <p>Import creates new private notes. Local assets are not uploaded by this Markdown bridge.</p>
+            <ul>{pending.map((note, index) => <li key={index}>{note.sourcePath}</li>)}</ul>
+            {issues.length ? <><p>{issues.length} issues to review{issues.length === 500 ? " (report capped at 500)" : ""}.</p><ul>{issues.map((issue, index) => <li key={index}><strong>{issue.file}</strong>: {issue.detail}</li>)}</ul></> : <p>No duplicate names, unresolved wiki links or missing local assets found.</p>}
+            <button type="button" className="btn-primary" disabled={busy} onClick={() => void confirmImport()}>Import {pending.length} private copies</button>
+            <button type="button" className="btn-ghost" disabled={busy} onClick={() => { setPending([]); setIssues([]); setStatus("Import cancelled."); }}>Cancel import</button>
+          </section>}
 
           <section className="bridge-section">
             <div className="bridge-section-title">
@@ -353,7 +381,7 @@ const ObsidianBridge: React.FC<ObsidianBridgeProps> = ({
           </p>
         </div>
       </aside>
-    </div>
+    </dialog>
   );
 };
 

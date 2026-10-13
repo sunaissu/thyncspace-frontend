@@ -1,3 +1,4 @@
+import WikiCompletion from "./wikiCompletion";
 import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import CollaborationPresence from "./collaborationPresence";
 import React, {
@@ -123,7 +124,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const [admissionError, setAdmissionError] = useState("");
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
-  const { setNotes } = useContext(NoteContext);
+  const { notes, setNotes } = useContext(NoteContext);
   const {
     preference,
     resolvedTheme,
@@ -583,6 +584,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       {connectionNotice}
       {privateSaveNotice}
       <CollaborationPresence className="document-presence-surface" collaboration={collaboration} userId={user?._id}>
+      <WikiCompletion notes={notes} readOnly={Boolean(readOnly)} editorRef={documentEditorRef}>
       <DocumentEditor
         ref={documentEditorRef}
         className={`thyncspace-document-editor ${editorPreferences.preferences.lineWidth === "reading" ? "editor-reading-width" : ""}`}
@@ -600,6 +602,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
           </button>
         )}
       />
+      </WikiCompletion>
       </CollaborationPresence>
       {calculatorOpen && <aside className="document-tool-panel" aria-label="Calculator">
         <p>Private calculator · only visible to you</p>

@@ -150,3 +150,23 @@ for deliberate cleanup; it excludes database overhead and indexes.
 Version comparisons render document previews and a changed text range, or board
 previews with added/removed/changed object counts. Original source remains available.
 Only five prior versions are retained, including named versions.
+
+## Linked notes and vault review
+
+Type [[ in visual or Markdown mode to find accessible notes. Use arrows and Enter,
+or choose a suggestion. New links use a stable note ID and a readable label.
+Connections lists outgoing links, backlinks and a local graph with navigation.
+Imported title/path links resolve relative to sourcePath; duplicate titles are
+shown as ambiguous rather than choosing a note silently. Code samples and comments
+do not create graph edges. The graph displays up to 24 neighbors, with separate
+link lists; extraction is bounded to 2,000 references per note.
+
+Markdown/vault selection now opens a preview before import. It lists duplicate
+titles, unresolved or ambiguous wiki links, and missing local assets. Selected
+assets are also flagged because this Markdown bridge does not upload them.
+Import explicitly creates private copies; cancel makes no API write. The report
+is capped at 500 issues. Folder selection reads Markdown content and other file
+names only. Closing the modal invalidates pending reads.
+
+Run npm run test:links for visual/source completion, stable references, backlinks,
+graph layouts and preview-before-import checks using API fixtures.

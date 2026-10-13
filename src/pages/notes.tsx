@@ -1,3 +1,4 @@
+import NoteConnections from "../components/noteConnections";
 import AdvancedSearch from "../components/advancedSearch";
 import { useWorkspacePreferences } from "../hooks/useWorkspacePreferences";
 import { emptySearchFilters, matchesFilters, noteSearchSnippet } from "../util/noteSearch";
@@ -90,6 +91,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [notebookFilter, setNotebookFilter] = useState("");
@@ -379,6 +381,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               </div>
             </div>
             <div className="workspace-actions">
+              <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
               <CommandPalette notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
               <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
@@ -407,6 +410,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             </div>
           </header>
 
+          {connectionsOpen && activeNote && <NoteConnections notes={notes} note={activeNote} onOpen={closeOrSwitchNote} onClose={() => setConnectionsOpen(false)} />}
           {tasksOpen && <TaskOverview notes={notes} onOpenNote={closeOrSwitchNote} onClose={() => setTasksOpen(false)} />}
           {libraryOpen && <NoteLibrary key={isOwner ? activeNote?._id : "trash"} note={isOwner ? activeNote : null}
             ownedNotes={notes.filter(note => note.owner === loggedInUser?._id)}

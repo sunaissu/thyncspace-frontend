@@ -16,7 +16,8 @@
     "test:browser": "node scripts/browser-review.cjs",
     "test:recovery": "node scripts/recovery-review.cjs",
     "test:live": "node scripts/live-review.cjs",
-    "test:presence": "node scripts/presence-review.cjs"
+    "test:presence": "node scripts/presence-review.cjs",
+    "test:links": "node scripts/links-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

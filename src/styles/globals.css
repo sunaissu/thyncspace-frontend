@@ -4467,3 +4467,30 @@ html[data-theme="light"] .modal-backdrop {
 .saved-search-row { display: flex; gap: 6px; margin: 6px 0; }
 .saved-search-row button { padding: 6px; border-radius: 5px; }
 .saved-search-row button:first-child { flex: 1; text-align: left; overflow-wrap: anywhere; }
+
+.wiki-editor-wrapper { position: relative; display: flex; flex: 1; min-width: 0; min-height: 0; height: 100%; }
+.wiki-editor-wrapper > .document-editor { flex: 1; min-width: 0; }
+.wiki-completion { position: absolute; z-index: 35; bottom: 38px; left: 12px; width: min(360px, calc(100% - 24px)); max-height: 45%; overflow: auto; padding: 10px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); color: var(--color-text); box-shadow: 0 8px 24px #0002; }
+.wiki-completion p { font-size: 12px; margin-bottom: 6px; }
+.wiki-completion button { display: grid; text-align: left; padding: 8px; border-radius: 6px; width: 100%; overflow-wrap: anywhere; }
+.wiki-completion button small { color: var(--color-text-muted); }
+.wiki-completion .is-selected { background: var(--color-surface-3); outline: 1px solid var(--color-border-strong); }
+.note-connections { padding: 16px; max-height: 42vh; overflow: auto; border-bottom: 1px solid var(--color-border); }
+.note-connections header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.note-connections h2 { font-size: 16px; overflow-wrap: anywhere; }
+.note-connections p { font-size: 12px; color: var(--color-text-muted); margin: 8px 0; }
+.connections-columns { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; }
+.connections-columns h3 { font-size: 14px; }
+.connections-columns li { margin: 6px 0; overflow-wrap: anywhere; }
+.connections-columns button { color: var(--color-accent); text-align: left; }
+.connections-columns svg { width: 100%; max-height: 220px; }
+.connections-columns ol { list-style: decimal inside; }
+@media(max-width: 700px) { .connections-columns { grid-template-columns: 1fr; } }
+.vault-import-review { margin: 16px 0; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; }
+.vault-import-review ul { max-height: 240px; overflow: auto; font-size: 12px; }
+.vault-import-review li { margin: 8px 0; overflow-wrap: anywhere; }
+
+dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-height: none; margin: 0; border: 0; color: var(--color-text); }
+
+.note-connections header button { flex-shrink: 0; padding: 6px 8px; font-size: 12px; white-space: nowrap; }
+@media (max-width: 700px) { .connections-columns svg { max-height: 140px; } .note-connections { scrollbar-gutter: stable; } }
