@@ -21,7 +21,8 @@
     "test:schedules": "node scripts/schedules-review.cjs",
     "test:capture": "node scripts/capture-review.cjs",
     "test:privacy": "node scripts/privacy-review.cjs",
-    "test:security": "node scripts/security-review.cjs"
+    "test:security": "node scripts/security-review.cjs",
+    "test:activity": "node scripts/activity-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",

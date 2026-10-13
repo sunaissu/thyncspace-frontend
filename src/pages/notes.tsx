@@ -1,3 +1,4 @@
+import NoteActivity from "../components/noteActivity";
 import NoteSchedules from "../components/noteSchedules";
 import NoteConnections from "../components/noteConnections";
 import AdvancedSearch from "../components/advancedSearch";
@@ -94,6 +95,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
   const [schedulesOpen, setSchedulesOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
@@ -392,6 +394,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             <div className="workspace-actions">
               <Link className="btn-ghost" href="/capture/">Capture</Link>
               <button className="btn-ghost" type="button" onClick={() => setSchedulesOpen(true)}>Daily notes</button>
+              <button className="btn-ghost" type="button" disabled={!activeNote || !isOwner} onClick={() => setActivityOpen(true)}>Activity</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
               <CommandPalette notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
@@ -421,6 +424,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             </div>
           </header>
 
+          {activityOpen && activeNote && isOwner && <NoteActivity noteId={activeNote._id} title={activeNote.title} onClose={() => setActivityOpen(false)} />}
           {connectionsOpen && activeNote && <NoteConnections notes={notes} note={activeNote} onOpen={closeOrSwitchNote} onClose={() => setConnectionsOpen(false)} />}
           {tasksOpen && <TaskOverview notes={notes} onOpenNote={closeOrSwitchNote} onClose={() => setTasksOpen(false)} />}
           {libraryOpen && <NoteLibrary key={isOwner ? activeNote?._id : "trash"} note={isOwner ? activeNote : null}
@@ -707,6 +711,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           <Link href="/capture/" onClick={() => mobileToolsDialog.current?.close()}>Capture to Inbox</Link>
           <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
           <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
+          <button type="button" disabled={!activeNote || !isOwner} onClick={() => openMobileTool(() => setActivityOpen(true))}>Activity</button>
           <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => setConnectionsOpen(true))}>Connections</button>
           <button type="button" onClick={() => openMobileTool(() => { setTasksOpen(true); setLibraryOpen(false); })}>Tasks</button>
           <button type="button" onClick={() => openMobileTool(() => setLibraryOpen(true))}>Organize and recover</button>

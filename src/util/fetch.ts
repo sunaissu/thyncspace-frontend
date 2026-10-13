@@ -383,3 +383,7 @@ export const requestPasswordReset = (email: string) => securityMutation("request
 export const requestEmailVerification = () => securityMutation("request-verification", {});
 export const confirmAccountAction = (purpose: "reset" | "verify", token: string, password?: string) => securityMutation("account-action", { purpose, token, password });
 export const changeAccountPassword = (currentPassword: string, newPassword: string) => securityMutation("change-password", { currentPassword, newPassword });
+
+export interface NoteActivityEvent { id: string; kind: string; at: string; actor: string; target?: string; permission?: string; sourceNoteId?: string; sourceVersionId?: string; }
+export interface NoteActivity { createdAt: string; limit: number; events: NoteActivityEvent[]; }
+export async function fetchNoteActivity(noteId: string): Promise<NoteActivity> { return (await fetchData(`${env.SERVER_URL}/api/notes/${encodeURIComponent(noteId)}/activity`, { cache: "no-store" })).json(); }
