@@ -37,13 +37,14 @@
     "test:archive": "node scripts/archive-review.cjs",
     "test:companion": "node scripts/companion-review.cjs",
     "test:auth-policy": "node scripts/auth-policy-review.cjs",
-    "test:foundation": "node scripts/foundation-review.cjs"
+    "test:foundation": "node scripts/foundation-review.cjs",
+    "test:technical": "node scripts/technical-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",
     "@phosphor-icons/react": "^2.1.10",
-    "@sunaissu/calculator": "file:vendor/sunaissu-calculator-1.0.0.tgz",
-    "@sunaissu/document-editor": "file:vendor/sunaissu-document-editor-1.0.1.tgz",
+    "@sunaissu/calculator": "file:vendor/sunaissu-calculator-1.1.0.tgz",
+    "@sunaissu/document-editor": "file:vendor/sunaissu-document-editor-1.1.0.tgz",
     "@sunaissu/noteboard": "file:vendor/sunaissu-noteboard-2.0.1.tgz",
     "@tesseract.js-data/eng": "^1.0.0",
     "next": "16.3.8",

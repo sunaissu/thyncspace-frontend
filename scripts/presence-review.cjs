@@ -90,9 +90,10 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
   await expect(a.getByRole('button', { name: /Insert.*(document|canvas)/i })).toHaveCount(0);
   await a.getByRole('textbox', { name: 'Calculation expression' }).fill('98765*123');
   await a.getByRole('textbox', { name: 'Calculation expression' }).press('Enter');
+  await a.getByText('Plot expression or data', { exact: true }).click(); await a.getByLabel('Plot expression', { exact: true }).fill('37819*x'); await a.getByRole('button', { name: 'Draw plot', exact: true }).click(); await expect(a.getByRole('img', { name: /Sampled plot of 37819/ })).toBeVisible(); await expect(b.getByRole('img', { name: /Sampled plot of 37819/ })).toHaveCount(0);
   expect((await Note.findById(note.id)).content).toBe('Shared document');
   const live = collaborationServer.documents.get(note.id);
-  expect(JSON.stringify(live.toJSON())).not.toContain('98765');
+  expect(JSON.stringify(live.toJSON())).not.toContain('98765'); expect(JSON.stringify(live.toJSON())).not.toContain('37819'); expect(JSON.stringify([...live.awareness.getStates().values()])).not.toContain('37819');
   expect(JSON.stringify([...live.awareness.getStates().values()])).not.toContain('98765');
   await a.getByRole('button', { name: 'Markdown', exact: true }).click();
   await b.getByRole('button', { name: 'Markdown', exact: true }).click();
