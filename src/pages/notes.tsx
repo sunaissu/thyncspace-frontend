@@ -1,3 +1,4 @@
+import ReminderCenter from "../components/reminderCenter";
 import AttachmentLibrary from "../components/attachmentLibrary";
 import StudyTools from "../components/studyTools";
 import NoteActivity from "../components/noteActivity";
@@ -97,6 +98,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [remindersOpen, setRemindersOpen] = useState(false);
   const [attachmentsOpen, setAttachmentsOpen] = useState(false);
   const [studyOpen, setStudyOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(false);
@@ -123,6 +125,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const mobileToolsDialog = useRef<HTMLDialogElement>(null);
   const openMobileTool = (action: () => void) => { mobileToolsDialog.current?.close(); action(); };
   const searchInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { if (router.isReady && router.query.reminders === "1") setRemindersOpen(true); }, [router.isReady, router.query.reminders]);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -401,7 +404,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               <button className="btn-ghost" type="button" disabled={!activeNote || !isOwner} onClick={() => setActivityOpen(true)}>Activity</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
-              <CommandPalette onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
+              <CommandPalette onReminders={() => setRemindersOpen(true)} onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
               <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
               <button
                 type="button"
@@ -428,6 +431,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             </div>
           </header>
 
+          {loggedInUser && <ReminderCenter key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} open={remindersOpen} onOpen={() => setRemindersOpen(true)} onClose={() => setRemindersOpen(false)} onOpenNote={closeOrSwitchNote} />}
           {attachmentsOpen && loggedInUser && <AttachmentLibrary key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} onOpenNote={closeOrSwitchNote} onClose={() => setAttachmentsOpen(false)} />}
           {studyOpen && loggedInUser && <StudyTools key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?.type === "document" ? activeNote._id : undefined} onOpenNote={closeOrSwitchNote} onClose={() => setStudyOpen(false)} />}
           {activityOpen && activeNote && isOwner && <NoteActivity noteId={activeNote._id} title={activeNote.title} onClose={() => setActivityOpen(false)} />}
@@ -718,6 +722,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
           <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
           <button type="button" disabled={!activeNote || !isOwner} onClick={() => openMobileTool(() => setActivityOpen(true))}>Activity</button>
+          <button type="button" onClick={() => openMobileTool(() => setRemindersOpen(true))}>Reminders</button>
           <button type="button" onClick={() => openMobileTool(() => setAttachmentsOpen(true))}>Attachments</button>
           <button type="button" onClick={() => openMobileTool(() => setStudyOpen(true))}>Study tools</button>
           <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => setConnectionsOpen(true))}>Connections</button>

@@ -35,6 +35,8 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
       }
       else if (pathname.includes('/users/sessions/')) { sessions = sessions.filter(device => !pathname.endsWith(device.id)); body = { signedOut: true, current: false }; }
       else if (pathname.endsWith('/sessions')) body = sessions;
+      // A malformed background reminder response must not crash the editor.
+      else if (pathname.endsWith('/reminders')) body = { unavailable: true };
       else if (pathname.endsWith('/storage')) body = { totals: { notes: 1, totalBytes: 30, contentBytes: 20, historyBytes: 5, collaborationBytes: 5, trashBytes: 0 }, largest: [{ ...note, status: 'active', totalBytes: 30 }], noteLimitBytes: 1048576 };
       else if (pathname.endsWith('/csrf-token')) body = { token: 'fixture-token' };
       else if (/\/history\/[a-f0-9]+$/.test(pathname)) body = request.method() === 'PATCH' ? { label: request.postDataJSON().label } : { id: '64b000000000000000000005', title: 'Earlier draft', savedAt: new Date().toISOString(), content: note.type === 'whiteboard' ? JSON.stringify({ elements: [createTextElement({ text: 'Earlier board' })], viewport: { panX: 0, panY: 0, zoom: 1 } }) : '# Earlier version', type: note.type };
