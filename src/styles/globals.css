@@ -4503,3 +4503,27 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .device-session-row p, .device-session-row details { font-size: 12px; color: var(--color-text-muted); }
 .device-session-row button { flex-shrink: 0; }
 @media(max-width: 600px) { .device-session-row { align-items: flex-start; flex-direction: column; } }
+
+.note-schedules-dialog { margin: auto; width: min(620px, calc(100vw - 24px)); max-height: 85dvh; overflow: auto; border: 1px solid var(--color-border); border-radius: 12px; padding: 20px; background: var(--color-surface); color: var(--color-text); }
+.note-schedules-dialog::backdrop { background: #0008; }
+.note-schedules-dialog header, .note-schedule-row > div { display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+.note-schedules-dialog h2 { font-size: 18px; }
+.note-schedules-dialog h3 { margin: 14px 0 8px; }
+.note-schedules-dialog p { font-size: 12px; margin: 8px 0; color: var(--color-text-muted); }
+.note-schedules-dialog label { display: grid; gap: 6px; margin: 10px 0; }
+.note-schedules-dialog input, .note-schedules-dialog select { width: 100%; min-width: 0; border: 1px solid var(--color-border); padding: 8px; border-radius: 6px; background: var(--color-surface-2); color: var(--color-text); }
+.note-schedules-dialog form, .note-schedule-row { border-bottom: 1px solid var(--color-border); padding-bottom: 14px; margin-bottom: 14px; overflow-wrap: anywhere; }
+
+.workspace-tools-toggle { display: none; }
+.workspace-tools-menu { margin: auto; width: min(360px, calc(100vw - 24px)); max-height: 85dvh; overflow: auto; padding: 16px; border-radius: 12px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); }
+.workspace-tools-menu::backdrop { background: #0008; }
+.workspace-tools-menu header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.workspace-tools-menu h2 { font-size: 16px; }
+.workspace-tools-menu > button { display: block; width: 100%; text-align: left; padding: 12px; border-radius: 6px; }
+.workspace-tools-menu > button:hover { background: var(--color-surface-2); }
+@media(max-width: 760px) {
+  .workspace-tools-toggle { display: inline-flex; }
+  .active-note-actions > button:not(.workspace-tools-toggle):not(.split-view-toggle) { display: none; }
+  .workspace-topbar { flex-wrap: wrap; padding-block: 8px; }
+  .workspace-actions { flex-wrap: wrap; }
+}

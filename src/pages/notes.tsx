@@ -1,3 +1,4 @@
+import NoteSchedules from "../components/noteSchedules";
 import NoteConnections from "../components/noteConnections";
 import AdvancedSearch from "../components/advancedSearch";
 import { useWorkspacePreferences } from "../hooks/useWorkspacePreferences";
@@ -12,6 +13,7 @@ import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightIcon,
+  DotsThreeIcon,
   CaretDownIcon,
   CheckIcon,
   FileTextIcon,
@@ -91,6 +93,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
   const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [schedulesOpen, setSchedulesOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [tasksOpen, setTasksOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
@@ -110,6 +113,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [noteBrowserOpen, setNoteBrowserOpen] = useState(true);
   const [error, setError] = useState("");
+  const mobileToolsDialog = useRef<HTMLDialogElement>(null);
+  const openMobileTool = (action: () => void) => { mobileToolsDialog.current?.close(); action(); };
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -383,6 +388,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               </div>
             </div>
             <div className="workspace-actions">
+              <button className="btn-ghost" type="button" onClick={() => setSchedulesOpen(true)}>Daily notes</button>
               <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
               <CommandPalette notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
@@ -597,6 +603,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                     </div>
 
                     <div className="active-note-actions">
+                      <button type="button" className="icon-button workspace-tools-toggle" aria-label="Workspace tools" onClick={() => mobileToolsDialog.current?.showModal()}><DotsThreeIcon size={22} /></button>
                       <button type="button" className="icon-button split-view-toggle" aria-label="Split view" aria-pressed={Boolean(secondaryNote)} disabled={notes.length < 2} title="Keep two notes open independently" onClick={() => { setSecondaryStatus("idle"); setSecondaryNoteId(secondaryNote ? null : (notes.find(note => note._id !== activeNote._id && note.type !== activeNote.type) ?? notes.find(note => note._id !== activeNote._id))?._id ?? null); }}><SquaresFourIcon size={17} /><span>Split view</span></button>
                       <button type="button" className="icon-button" aria-label={workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"} title={workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"} aria-pressed={workspace.data.pinned.includes(activeNote._id)} onClick={() => { void workspace.update({ action: workspace.data.pinned.includes(activeNote._id) ? "unpin" : "pin", noteId: activeNote._id }); }}><PushPinIcon size={18} weight={workspace.data.pinned.includes(activeNote._id) ? "fill" : "regular"} /></button>
                       <button
@@ -692,6 +699,21 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           </div>
         </div>
 
+        <dialog ref={mobileToolsDialog} className="workspace-tools-menu" aria-label="Workspace tools">
+          <header><h2>Workspace tools</h2><button type="button" className="btn-ghost" onClick={() => mobileToolsDialog.current?.close()}>Close tools</button></header>
+          <button type="button" onClick={() => openMobileTool(() => setNewNoteDialogOpen(true))}>New note</button>
+          <button type="button" onClick={() => openMobileTool(() => setSchedulesOpen(true))}>Daily notes</button>
+          <button type="button" disabled={!activeNote} onClick={() => openMobileTool(() => setConnectionsOpen(true))}>Connections</button>
+          <button type="button" onClick={() => openMobileTool(() => { setTasksOpen(true); setLibraryOpen(false); })}>Tasks</button>
+          <button type="button" onClick={() => openMobileTool(() => setLibraryOpen(true))}>Organize and recover</button>
+          <button type="button" onClick={() => openMobileTool(() => setObsidianOpen(true))}>Import Markdown</button>
+          {activeNote && <>
+            <button type="button" onClick={() => openMobileTool(() => { void workspace.update({ action: workspace.data.pinned.includes(activeNote._id) ? "unpin" : "pin", noteId: activeNote._id }); })}>{workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"}</button>
+            <button type="button" onClick={() => openMobileTool(() => { void handleToggleFavorite(activeNote._id); })}>{isFavorite ? "Remove from favorites" : "Add to favorites"}</button>
+            {isOwner && <><button type="button" onClick={() => openMobileTool(() => setShareDialogOpen(true))}>Share note</button><button type="button" onClick={() => openMobileTool(() => { void handleDeleteNote(activeNote._id); })}>Delete note</button></>}
+          </>}
+        </dialog>
+        <NoteSchedules open={schedulesOpen} templates={notes.filter(note => note.owner === loggedInUser?._id && note.isTemplate)} onOpen={note => { setNotes(current => current.some(item => item._id === note._id) ? current : [note, ...current]); closeOrSwitchNote(note._id); }} onClose={() => setSchedulesOpen(false)} />
         <AddNoteDialog
           defaultType={editorPreferences.preferences.noteType as NoteType}
           templates={notes.filter(note => note.owner === loggedInUser?._id && note.isTemplate)}

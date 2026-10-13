@@ -178,3 +178,21 @@ Organize and recover can archive one note or a selected group. Archived notes le
 ## Signed-in devices
 
 Settings lists up to 100 active sessions, identifies the current one, and shows approximate browser/device names and first/last request times. Signing out a selected session closes its live editors and blocks future API requests and token reuse. Signing out this session returns to login. Devices appear after their first authenticated request following this update.
+
+## Daily and recurring notes
+
+Daily notes opens one private note per selected date. The date defaults to today in
+the browser's local time zone. Choose an owned template, or a blank document; the
+first creation wins and subsequent requests reopen it. A trashed daily note must be
+restored before reopening, and restoration keeps the date linked to the new note ID.
+
+Recurring notes requires an owned template and a daily/weekly time in UTC. Each
+account may keep 20 schedules. Pause, resume, remove, refresh and open the latest
+generated note from the same dialog. Removing a schedule preserves created notes.
+The backend runs it while browsers are closed. After downtime it creates one missed
+occurrence and advances to the next future time, instead of flooding the library.
+Unavailable/invalid templates pause their schedules with an explanation.
+
+On mobile, Workspace tools in the active note header opens daily notes, connections,
+tasks, organization, import, creation and note actions without a permanent extra
+toolbar. Run npm run test:schedules for the daily/recurring and mobile access flow.

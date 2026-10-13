@@ -343,3 +343,10 @@ export async function updateWorkspacePreferences(action: WorkspaceAction): Promi
 export interface DeviceSession { id: string; current: boolean; userAgent: string; firstSeenAt: string; lastSeenAt: string; expiresAt: string }
 export async function fetchDeviceSessions(): Promise<DeviceSession[]> { return (await fetchData(env.SERVER_URL + "/api/users/sessions")).json(); }
 export async function revokeDeviceSession(id: string): Promise<{ signedOut: boolean; current: boolean }> { return (await fetchData(env.SERVER_URL + "/api/users/sessions/" + encodeURIComponent(id), { method: "DELETE" })).json(); }
+
+export interface NoteSchedule { id: string; templateId: string; title: string; cadence: "daily" | "weekly"; time: string; weekday: number; isActive: boolean; nextRunAt: string; lastRunAt?: string; lastNoteId?: string; error?: string }
+export async function openDailyNote(date: string, templateId?: string): Promise<Note> { return (await fetchData(env.SERVER_URL + "/api/notes/daily", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ date, templateId }) })).json(); }
+export async function fetchNoteSchedules(): Promise<NoteSchedule[]> { return (await fetchData(env.SERVER_URL + "/api/notes/schedules")).json(); }
+export async function createNoteSchedule(value: Pick<NoteSchedule, "templateId" | "title" | "cadence" | "time" | "weekday">): Promise<NoteSchedule> { return (await fetchData(env.SERVER_URL + "/api/notes/schedules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) })).json(); }
+export async function changeNoteSchedule(id: string, isActive: boolean): Promise<NoteSchedule> { return (await fetchData(env.SERVER_URL + "/api/notes/schedules/" + encodeURIComponent(id), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isActive }) })).json(); }
+export async function deleteNoteSchedule(id: string): Promise<void> { await fetchData(env.SERVER_URL + "/api/notes/schedules/" + encodeURIComponent(id), { method: "DELETE" }); }
