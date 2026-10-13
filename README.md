@@ -170,3 +170,7 @@ names only. Closing the modal invalidates pending reads.
 
 Run npm run test:links for visual/source completion, stable references, backlinks,
 graph layouts and preview-before-import checks using API fixtures.
+
+## Archive
+
+Organize and recover can archive one note or a selected group. Archived notes leave the active list and remain searchable through the Archived filter and Commands. Unarchive restores them to the active list. This is private organization: it does not remove sharing, change content, or move notes to trash. Saved views can retain the Archived filter.

@@ -20,6 +20,7 @@ export interface BaseNote {
   _id: string;
   contentRevision?: number;
   isTemplate?: boolean;
+  isArchived?: boolean;
   notebook?: string;
   sourcePath?: string;
   tags?: string[];

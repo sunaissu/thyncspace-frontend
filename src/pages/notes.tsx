@@ -140,7 +140,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
         setFilter(sharedOnly ? "shared" : "all");
         setSelectedNoteId(
           requestedNoteId ||
-            (sharedOnly ? sharedNotes[0]?._id : availableNotes[0]?._id) ||
+            (sharedOnly ? sharedNotes[0]?._id : availableNotes.find(note => !note.isArchived)?._id) ||
             null,
         );
       } catch (error) {
@@ -303,6 +303,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   const filteredNotes = useMemo(() => {
     return notes
+      .filter(note => filter === "archived" ? note.isArchived : !note.isArchived)
       .filter(note => matchesFilters(note, searchFilters, loggedInUser?._id))
       .filter((note) => noteMatchesSearch(note, search) || (note.tags ?? []).some(tag => tag.includes(search.trim().toLowerCase())) || (note.notebook ?? "").toLowerCase().includes(search.trim().toLowerCase()))
       .filter(note => !notebookFilter || (note.notebook === notebookFilter || note.notebook?.startsWith(notebookFilter + "/")))
@@ -354,6 +355,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     { value: "all", label: "All notes" },
     { value: "pinned", label: "Pinned" },
     { value: "recent", label: "Recently opened" },
+    { value: "archived", label: "Archived" },
     { value: "shared", label: "Shared with me" },
     { value: "documents", label: "Documents" },
     { value: "boards", label: "Whiteboards" },
@@ -414,10 +416,10 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           {tasksOpen && <TaskOverview notes={notes} onOpenNote={closeOrSwitchNote} onClose={() => setTasksOpen(false)} />}
           {libraryOpen && <NoteLibrary key={isOwner ? activeNote?._id : "trash"} note={isOwner ? activeNote : null}
             ownedNotes={notes.filter(note => note.owner === loggedInUser?._id)}
-            onBulkUpdated={updated => { const byId = new Map(updated.map(note => [note._id, note])); setNotes(current => current.map(note => { const saved = byId.get(note._id); return saved ? { ...note, notebook: saved.notebook, tags: saved.tags, isTemplate: saved.isTemplate } : note; })); }}
+            onBulkUpdated={updated => { const byId = new Map(updated.map(note => [note._id, note])); setNotes(current => current.map(note => { const saved = byId.get(note._id); return saved ? { ...note, notebook: saved.notebook, tags: saved.tags, isTemplate: saved.isTemplate, isArchived: saved.isArchived } : note; })); }}
             onClose={() => setLibraryOpen(false)}
             onRecovered={note => { setNotes(current => [note, ...current]); setSelectedNoteId(note._id); setLibraryOpen(false); setSearch(""); setFilter("all"); setNotebookFilter(""); }}
-            onOrganizationChange={saved => { setNotes(current => current.map(note => note._id === saved._id ? { ...note, notebook: saved.notebook, tags: saved.tags, isTemplate: saved.isTemplate } : note)); setLibraryOpen(false); }} />}
+            onOrganizationChange={saved => { if (saved.isArchived) setFilter("archived"); else if (filter === "archived") setFilter("all"); setNotes(current => current.map(note => note._id === saved._id ? { ...note, notebook: saved.notebook, tags: saved.tags, isTemplate: saved.isTemplate, isArchived: saved.isArchived } : note)); setLibraryOpen(false); }} />}
           {error && (
             <p className="new-note-dialog-error" role="alert">
               {error}{" "}

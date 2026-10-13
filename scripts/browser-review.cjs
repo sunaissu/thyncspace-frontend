@@ -38,7 +38,7 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
       else if (pathname.endsWith('/history')) body = [{ id: '64b000000000000000000005', title: 'Earlier draft', savedAt: new Date().toISOString() }];
       else if (pathname.endsWith('/trash')) body = [{ ...note, _id: '64b000000000000000000006', title: 'Trashed note' }];
       else if (pathname.endsWith('/shared')) body = [];
-      else if (pathname.endsWith('/organization/bulk')) { const data = request.postDataJSON(); note = data.action === 'move' ? { ...note, notebook: data.notebook } : { ...note, tags: [...new Set(note.tags.map(tag => tag === data.from ? data.to : tag))] }; body = { affected: 1 }; }
+      else if (pathname.endsWith('/organization/bulk')) { const data = request.postDataJSON(); note = data.action === 'move' ? { ...note, notebook: data.notebook } : data.action === 'archive' ? { ...note, isArchived: data.isArchived } : { ...note, tags: [...new Set(note.tags.map(tag => tag === data.from ? data.to : tag))] }; body = { affected: 1 }; }
       else if (pathname.endsWith('/organization')) body = note = { ...note, ...request.postDataJSON() };
       else if (pathname.endsWith('/recover')) body = { ...note, _id: String(nextId++).padStart(24, '0'), title: 'Recovered note' };
       else if (pathname.endsWith('/private')) body = { ...note, content: request.postDataJSON().text ?? note.content };
@@ -96,6 +96,19 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
     page.once('dialog', dialog => dialog.accept());
     await page.getByRole('button', { name: 'Rename or merge tag' }).click();
     await expect(page.getByLabel('Tags, separated by commas')).toHaveValue('math');
+    await page.getByRole('checkbox', { name: /Review document Research/ }).check();
+    await page.getByRole('button', { name: 'Archive selected', exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Archive this note in my library' })).toBeChecked();
+    await expect(page.locator('.note-list')).not.toContainText('Review document');
+    await page.getByRole('combobox', { name: 'Filter notes' }).selectOption('archived');
+    await page.getByRole('textbox', { name: 'Search notes', exact: true }).fill('Review');
+    await expect(page.locator('.note-list')).toContainText('Review document');
+    await page.getByRole('textbox', { name: 'Search notes', exact: true }).fill('');
+    await page.getByRole('checkbox', { name: /Review document Research/ }).check();
+    await page.getByRole('button', { name: 'Unarchive selected', exact: true }).click();
+    await expect(page.getByRole('checkbox', { name: 'Archive this note in my library' })).not.toBeChecked();
+    await page.getByRole('combobox', { name: 'Filter notes' }).selectOption('all');
+    await expect(page.locator('.note-list')).toContainText('Review document');
     await page.getByText('Move notes and manage tags', { exact: true }).click();
     await page.getByRole('textbox', { name: 'Name version 64b000000000000000000005' }).fill('Checkpoint');
     await page.getByRole('button', { name: 'Save name', exact: true }).click();

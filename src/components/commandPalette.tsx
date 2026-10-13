@@ -33,7 +33,7 @@ export default function CommandPalette({ notes, onOpenNote, onNewNote, onLibrary
         <header><h2 id="command-palette-title">Commands</h2><button type="button" onClick={() => dialog.current?.close()} aria-label="Close commands">×</button></header>
         <input ref={input} aria-label="Find a note or command" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search notes and actions" onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); dialog.current?.querySelector<HTMLButtonElement>("button[data-command]")?.click(); } }} />
         <div className="command-results">{actions.map(action => <button type="button" data-command key={action.label} onClick={() => run(action.run)}>{action.label}<small>Action</small></button>)}
-        {matches.map(note => <button type="button" data-command key={note._id} onClick={() => run(() => onOpenNote(note._id))}>{note.title}<small>{note.type}</small></button>)}
+        {matches.map(note => <button type="button" data-command key={note._id} onClick={() => run(() => onOpenNote(note._id))}>{note.title}<small>{note.isArchived ? "Archived " : ""}{note.type}</small></button>)}
         {!actions.length && !matches.length && <p>No matching notes or commands.</p>}</div>
         <small>↑ ↓ to choose · Enter to open · Escape to close · up to 50 notes</small>
       </div>

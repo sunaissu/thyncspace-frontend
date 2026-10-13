@@ -4494,3 +4494,5 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 
 .note-connections header button { flex-shrink: 0; padding: 6px 8px; font-size: 12px; white-space: nowrap; }
 @media (max-width: 700px) { .connections-columns svg { max-height: 140px; } .note-connections { scrollbar-gutter: stable; } }
+
+.bulk-archive-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }

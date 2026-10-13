@@ -12,6 +12,7 @@ export default function NoteLibrary({ note, ownedNotes, onBulkUpdated, onRecover
   const [trash, setTrash] = useState<Note[]>([]);
   const [versions, setVersions] = useState<Api.NoteVersion[]>([]);
   const [preview, setPreview] = useState<(Api.NoteVersion & { content: string }) | null>(null);
+  const [isArchived, setIsArchived] = useState(note?.isArchived ?? false);
   const [isTemplate, setIsTemplate] = useState(note?.isTemplate ?? false);
   const [notebook, setNotebook] = useState(note?.notebook ?? "");
   const [tags, setTags] = useState(note?.tags?.join(", ") ?? "");
@@ -37,12 +38,14 @@ export default function NoteLibrary({ note, ownedNotes, onBulkUpdated, onRecover
     {busy && <p role="status">Working…</p>}
     {note && <>
       <form onSubmit={event => { event.preventDefault(); void perform(async () => {
-        const saved = await Api.updateNoteOrganization(note._id, notebook, tags.split(",").map(tag => tag.trim()).filter(Boolean), isTemplate);
+        const saved = await Api.updateNoteOrganization(note._id, notebook, tags.split(",").map(tag => tag.trim()).filter(Boolean), isTemplate, isArchived);
         onOrganizationChange(saved);
       }); }}>
         <label>Notebook<input value={notebook} maxLength={80} onChange={event => setNotebook(event.target.value)} /></label>
         <label>Tags, separated by commas<input value={tags} maxLength={820} onChange={event => setTags(event.target.value)} /></label>
         <label className="template-checkbox"><input type="checkbox" checked={isTemplate} onChange={event => setIsTemplate(event.target.checked)} />Use this note as a reusable template</label>
+        <label className="template-checkbox"><input type="checkbox" checked={isArchived} onChange={event => setIsArchived(event.target.checked)} />Archive this note in my library</label>
+        <small>Archived notes stay searchable in the Archived filter. Sharing stays unchanged.</small>
         <button className="btn-primary" disabled={busy}>Save organization</button>
       </form>
       <h3>Recent versions</h3><p>Restore one of the last five saved versions as a new private note.</p>
@@ -54,7 +57,7 @@ export default function NoteLibrary({ note, ownedNotes, onBulkUpdated, onRecover
       </div>)}
       {preview && <div className="version-comparison"><h4>{preview.label || preview.title}</h4><VersionComparison saved={preview.content} note={note} /><button type="button" className="btn-ghost" onClick={() => setPreview(null)}>Close comparison</button></div>}
     </>}
-    <BulkOrganization notes={ownedNotes} onUpdated={updated => { const current = updated.find(item => item._id === noteId); if (current) { setNotebook(current.notebook ?? ""); setTags(current.tags?.join(", ") ?? ""); setIsTemplate(current.isTemplate ?? false); } onBulkUpdated(updated); }} />
+    <BulkOrganization notes={ownedNotes} onUpdated={updated => { const current = updated.find(item => item._id === noteId); if (current) { setNotebook(current.notebook ?? ""); setTags(current.tags?.join(", ") ?? ""); setIsTemplate(current.isTemplate ?? false); setIsArchived(current.isArchived ?? false); } onBulkUpdated(updated); }} />
     <h3>Trash</h3><p>Restored notes are private. Share them again when ready.</p>
     {!busy && trash.length === 0 && <p>Trash is empty.</p>}
     {trash.map(item => <div className="library-row" key={item._id}><span>{item.title}<small>{item.type}</small></span>
