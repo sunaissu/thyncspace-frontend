@@ -4496,3 +4496,10 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 @media (max-width: 700px) { .connections-columns svg { max-height: 140px; } .note-connections { scrollbar-gutter: stable; } }
 
 .bulk-archive-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+
+.device-session-row { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--color-border); }
+.device-session-row > div { min-width: 0; overflow-wrap: anywhere; }
+.device-session-row h3 { font-size: 14px; }
+.device-session-row p, .device-session-row details { font-size: 12px; color: var(--color-text-muted); }
+.device-session-row button { flex-shrink: 0; }
+@media(max-width: 600px) { .device-session-row { align-items: flex-start; flex-direction: column; } }

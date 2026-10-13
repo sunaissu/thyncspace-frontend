@@ -1,3 +1,4 @@
+import DeviceSessions from "../components/deviceSessions";
 import StorageUsagePanel from "../components/storageUsage";
 import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import {
@@ -281,6 +282,7 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
           </form>
         </section>
 
+        <DeviceSessions />
         <StorageUsagePanel />
         <section className="settings-section settings-note">
           <h2>Editor defaults</h2>

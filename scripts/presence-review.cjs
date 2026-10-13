@@ -12,6 +12,7 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
  const load = file => import(pathToFileURL(path.resolve('../backend/dist', file)).href);
  const { default: Note } = await load('models/note.model.js');
  const { default: User } = await load('models/user.model.js');
+ const { default: DeviceSession } = await load('models/deviceSession.model.js');
  const { attachCollaborationServer, shutdownCollaborationServer, collaborationServer } = await load('collaboration/server.js');
  const { createCollaborationToken } = await load('util/collaborationToken.js');
  const replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.16' }, replSet: { count: 1 } });
@@ -23,7 +24,10 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
   let note = await Note.create({ owner: alice._id, title: 'Presence review', type: 'document', content: 'Shared document', sharedWith: [{ userId: bob._id, permission: 'editor' }] });
   attachCollaborationServer(server); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   browser = await chromium.launch({ executablePath: process.env.CHROME_PATH || (process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined), headless: true });
+  const devices = new Map();
   const setup = async user => {
+   const sessionHash = require("node:crypto").randomBytes(32).toString("hex");
+   const device = await DeviceSession.create({ userId: user.id, sessionHash, expiresAt: new Date(Date.now() + 3600000) });
    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
    await context.route('**/api/**', async route => {
     const endpoint = new URL(route.request().url()).pathname;
@@ -31,7 +35,7 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
     if (endpoint.endsWith('/getUser')) body = { user: { _id: user.id, username: user.username } };
     else if (endpoint.endsWith('/workspace')) body = { revision: 0, pinned: [], recent: [], searches: [] };
    else if (endpoint.endsWith('/csrf-token')) body = { token: 'fixture' };
-    else if (endpoint.endsWith('/collaboration-token')) body = { token: createCollaborationToken(note.id, user.id) };
+    else if (endpoint.endsWith('/collaboration-token')) body = { token: createCollaborationToken(note.id, user.id, sessionHash) };
     else if (endpoint.endsWith('/shared')) body = [];
     else { const current = (await Note.findById(note.id)).toObject(); body = endpoint.endsWith('/notes') ? [current] : current; }
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
@@ -46,6 +50,7 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
     socket.on('error', () => route.close());
     route.onClose(() => { connections.delete(socket); socket.close(); });
    });
+   devices.set(context, device);
    return context;
   };
   const ca = await setup(alice), cb = await setup(bob);
@@ -108,8 +113,17 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
   expect(sharedViewport).toEqual({ panX: 0, panY: 0, zoom: 1 });
   await bb.screenshot({ path: 'test/artifacts/presence-board.png' });
   expect(pageErrors).toEqual([]);
+  const bobDevice = devices.get(cb);
+  const { revokeDeviceSession } = await load('controller/deviceSessions.js');
+  let revoked;
+  await revokeDeviceSession({ user: { id: bob.id }, sessionID: 'another-bob-session', params: { deviceId: bobDevice.id } }, { json: value => { revoked = value; } }, error => { throw error; });
+  expect(revoked.current).toBe(false);
+  await expect.poll(() => collaborationServer.documents.get(note.id)?.getConnections().filter(connection => connection.context.sessionHash === bobDevice.sessionHash).length ?? 0).toBe(0);
+  const { assertActiveDeviceSession } = await load('util/deviceSessions.js');
+  await expect(assertActiveDeviceSession(bobDevice.sessionHash, bob.id)).rejects.toThrow('Session expired');
+  expect(collaborationServer.documents.get(note.id).getConnections().some(connection => connection.context.userId === alice.id)).toBe(true);
   await ca.close(); await cb.close(); await browser.close(); browser = null;
-  console.log('Two authenticated accounts: document/board cursor names, distinct sessions/colors, same-account tabs, disconnect cleanup, private calculator, shared edits, and local viewport passed.');
+  console.log('Two authenticated accounts: document/board cursor names, distinct sessions/colors, same-account tabs, disconnect cleanup, private calculator, shared edits, local viewport, and targeted remote sign-out passed.');
  } finally {
   if (browser) await browser.close();
   for (const socket of connections) socket.terminate();

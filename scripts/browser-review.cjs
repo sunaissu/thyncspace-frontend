@@ -11,6 +11,7 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
     const errors = [], requests = [];
     page.on('pageerror', error => errors.push(error.message));
     const user = { _id: '64b000000000000000000002', username: 'Review user', email: 'review@example.test' };
+    let sessions = [{ id: "64b000000000000000000011", current: true, userAgent: "Chrome/1 Windows", firstSeenAt: new Date().toISOString(), lastSeenAt: new Date().toISOString() }, { id: "64b000000000000000000012", current: false, userAgent: "Firefox/1 Linux", firstSeenAt: new Date().toISOString(), lastSeenAt: new Date().toISOString() }];
     const workspace = { revision: 0, pinned: [], recent: [], searches: [] };
     let nextId = 10;
     let companion = null;
@@ -32,6 +33,8 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
         }
         body = workspace;
       }
+      else if (pathname.includes('/users/sessions/')) { sessions = sessions.filter(device => !pathname.endsWith(device.id)); body = { signedOut: true, current: false }; }
+      else if (pathname.endsWith('/sessions')) body = sessions;
       else if (pathname.endsWith('/storage')) body = { totals: { notes: 1, totalBytes: 30, contentBytes: 20, historyBytes: 5, collaborationBytes: 5, trashBytes: 0 }, largest: [{ ...note, status: 'active', totalBytes: 30 }], noteLimitBytes: 1048576 };
       else if (pathname.endsWith('/csrf-token')) body = { token: 'fixture-token' };
       else if (/\/history\/[a-f0-9]+$/.test(pathname)) body = request.method() === 'PATCH' ? { label: request.postDataJSON().label } : { id: '64b000000000000000000005', title: 'Earlier draft', savedAt: new Date().toISOString(), content: note.type === 'whiteboard' ? JSON.stringify({ elements: [createTextElement({ text: 'Earlier board' })], viewport: { panX: 0, panY: 0, zoom: 1 } }) : '# Earlier version', type: note.type };
@@ -187,6 +190,11 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3010';
     await page.keyboard.press('Enter');
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await page.goto(origin + '/settings/');
+    await expect(page.getByRole('heading', { name: 'Chrome on Windows · This session' })).toBeVisible();
+    page.once('dialog', dialog => dialog.accept());
+    await page.getByRole('button', { name: 'Sign out device', exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Firefox on Linux', exact: true })).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Chrome on Windows · This session' })).toBeVisible();
     await expect(page.getByText('30 B', { exact: true }).first()).toBeVisible();
     await page.getByRole('combobox', { name: 'Preferred editor mode' }).selectOption('markdown');
     await page.getByRole('spinbutton', { name: 'Editor font size' }).fill('20');

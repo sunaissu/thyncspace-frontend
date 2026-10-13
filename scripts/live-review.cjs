@@ -12,6 +12,7 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
  const load = file => import(pathToFileURL(path.resolve('../backend/dist', file)).href);
  const { default: Note } = await load('models/note.model.js');
  const { default: User } = await load('models/user.model.js');
+ const { default: DeviceSession } = await load('models/deviceSession.model.js');
  const { attachCollaborationServer, shutdownCollaborationServer, collaborationServer } = await load('collaboration/server.js');
  const { createCollaborationToken } = await load('util/collaborationToken.js');
  const replica = await MongoMemoryReplSet.create({ binary: { version: '8.0.16' }, replSet: { count: 1 } });
@@ -19,6 +20,8 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
  try {
   await mongoose.connect(replica.getUri(), { dbName: 'disposable_live_review' });
   const owner = await User.create({ username: 'Live review', email: 'live@example.test' });
+  const sessionHash = require('node:crypto').randomBytes(32).toString('hex');
+  await DeviceSession.create({ userId: owner.id, sessionHash, expiresAt: new Date(Date.now() + 3600000) });
   const peer = await User.create({ username: 'Peer', email: 'peer@example.test' });
   const note = await Note.create({ owner: owner._id, title: 'Live recovery', type: 'document', content: 'server baseline', sharedWith: [{ userId: peer._id, permission: 'editor' }] });
   attachCollaborationServer(server); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -31,7 +34,7 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
    if (endpoint.endsWith('/getUser')) body = { user: { _id: owner.id, username: owner.username, email: 'live@example.test' } };
    else if (endpoint.endsWith('/workspace')) body = { revision: 0, pinned: [], recent: [], searches: [] };
    else if (endpoint.endsWith('/csrf-token')) body = { token: 'fixture' };
-   else if (endpoint.endsWith('/collaboration-token')) body = { token: createCollaborationToken(note.id, owner.id) };
+   else if (endpoint.endsWith('/collaboration-token')) body = { token: createCollaborationToken(note.id, owner.id, sessionHash) };
    else if (endpoint.endsWith('/shared')) body = [];
    else { const current = (await Note.findById(note.id)).toObject(); body = endpoint.endsWith('/notes') ? [current] : current; }
    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });

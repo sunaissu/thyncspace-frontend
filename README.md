@@ -174,3 +174,7 @@ graph layouts and preview-before-import checks using API fixtures.
 ## Archive
 
 Organize and recover can archive one note or a selected group. Archived notes leave the active list and remain searchable through the Archived filter and Commands. Unarchive restores them to the active list. This is private organization: it does not remove sharing, change content, or move notes to trash. Saved views can retain the Archived filter.
+
+## Signed-in devices
+
+Settings lists up to 100 active sessions, identifies the current one, and shows approximate browser/device names and first/last request times. Signing out a selected session closes its live editors and blocks future API requests and token reuse. Signing out this session returns to login. Devices appear after their first authenticated request following this update.

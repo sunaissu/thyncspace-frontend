@@ -339,3 +339,7 @@ export interface WorkspacePreferences { revision: number; pinned: string[]; rece
 export type WorkspaceAction = { action: "pin" | "unpin" | "open"; noteId: string } | { action: "clear-recent" } | { action: "save-search"; search: SavedSearch } | { action: "delete-search"; id: string };
 export async function fetchWorkspacePreferences(): Promise<WorkspacePreferences> { return (await fetchData(env.SERVER_URL + "/api/notes/workspace")).json(); }
 export async function updateWorkspacePreferences(action: WorkspaceAction): Promise<WorkspacePreferences> { return (await fetchData(env.SERVER_URL + "/api/notes/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) })).json(); }
+
+export interface DeviceSession { id: string; current: boolean; userAgent: string; firstSeenAt: string; lastSeenAt: string; expiresAt: string }
+export async function fetchDeviceSessions(): Promise<DeviceSession[]> { return (await fetchData(env.SERVER_URL + "/api/users/sessions")).json(); }
+export async function revokeDeviceSession(id: string): Promise<{ signedOut: boolean; current: boolean }> { return (await fetchData(env.SERVER_URL + "/api/users/sessions/" + encodeURIComponent(id), { method: "DELETE" })).json(); }
