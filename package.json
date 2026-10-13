@@ -33,7 +33,8 @@
     "test:embeds": "node scripts/embeds-review.cjs",
     "test:discussions": "node scripts/discussions-review.cjs",
     "test:notebooks": "node scripts/notebooks-review.cjs",
-    "test:ai": "node scripts/ai-review.cjs"
+    "test:ai": "node scripts/ai-review.cjs",
+    "test:archive": "node scripts/archive-review.cjs"
   },
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",
