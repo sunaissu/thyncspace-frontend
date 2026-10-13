@@ -1,3 +1,5 @@
+import StorageUsagePanel from "../components/storageUsage";
+import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import {
   CheckIcon,
   DesktopIcon,
@@ -87,6 +89,7 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
     setPreference,
     setAccentTheme,
   } = useTheme();
+  const editor = useEditorPreferences(loggedInUser?._id);
   const [username, setUsername] = useState(loggedInUser?.username ?? "");
   const [profileStatus, setProfileStatus] = useState("");
   const [savingProfile, setSavingProfile] = useState(false);
@@ -278,12 +281,17 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
           </form>
         </section>
 
+        <StorageUsagePanel />
         <section className="settings-section settings-note">
           <h2>Editor defaults</h2>
-          <p>
-            Notes now open in the visual editor. Markdown source and preview remain
-            available from every document toolbar.
-          </p>
+          <p>Defaults for new editor sessions on this device. Shared content is unchanged.</p>
+          <div className="editor-preferences-form">
+            <label>Preferred editor mode<select value={editor.preferences.mode} onChange={event => editor.update({ mode: event.target.value as typeof editor.preferences.mode })}><option value="visual">Visual</option><option value="markdown">Markdown</option><option value="split">Split</option><option value="preview">Preview</option></select></label>
+            <label>Editor font size<input type="number" min={12} max={28} value={editor.preferences.fontSize} onChange={event => editor.update({ fontSize: Number(event.target.value) })} /></label>
+            <label>Line width<select value={editor.preferences.lineWidth} onChange={event => editor.update({ lineWidth: event.target.value as "full" | "reading" })}><option value="full">Full width</option><option value="reading">Reading width</option></select></label>
+            <label>Default new note type<select value={editor.preferences.noteType} onChange={event => editor.update({ noteType: event.target.value as "document" | "whiteboard" })}><option value="document">Document</option><option value="whiteboard">Whiteboard</option></select></label>
+          </div>
+          {editor.error && <p role="alert">{editor.error}</p>}
         </section>
       </div>
     </AppLayout>

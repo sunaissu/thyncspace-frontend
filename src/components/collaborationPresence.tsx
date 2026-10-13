@@ -36,7 +36,7 @@ export default function CollaborationPresence({ children, collaboration, boardRe
     return () => { observer.disconnect(); mutations.disconnect(); window.removeEventListener("blur", clear); document.removeEventListener("visibilitychange", clear); if (frame.current !== null) cancelAnimationFrame(frame.current); publish(null); };
   }, [collaboration.local, publish, refresh]);
 
-  const [positions, setPositions] = useState<Array<{ id: number; x: number; y: number }>>([]);
+  const [positions, setPositions] = useState<Array<{ id: number; x: number; y: number; labelX: number; labelY: number }>>([]);
   useEffect(() => {
     const node = root.current;
     if (!node) return;
@@ -59,7 +59,7 @@ export default function CollaborationPresence({ children, collaboration, boardRe
         x = rect.left - bounds.left + cursor.x * rect.width - block.scrollLeft;
         y = rect.top - bounds.top + cursor.y - block.scrollTop;
       }
-      if (x >= 0 && y >= 0 && x <= bounds.width && y <= bounds.height) next.push({ id: peer.sessionId, x, y });
+      if (x >= 0 && y >= 0 && x <= bounds.width && y <= bounds.height) next.push({ id: peer.sessionId, x, y, labelX: Math.min(18, Math.max(-x, bounds.width - x - 238)), labelY: y + 60 > bounds.height ? -30 : 15 });
     });
     setPositions(next);
   }, [collaboration.peers, collaboration.clientId, boardRef, layout]);
@@ -92,7 +92,7 @@ export default function CollaborationPresence({ children, collaboration, boardRe
         const lane = positions.slice(0, index).filter(other => Math.abs(other.x - position.x) < 240 && Math.abs(other.y - position.y) < 60).length;
         return <div key={position.id} className="remote-cursor" role="img" aria-label={`${peer.name}'s cursor, session ${position.id}`} data-owner-id={peer.id} data-session-id={position.id} style={{ left: position.x, top: position.y, color: peer.color }}>
           <svg width="18" height="23" viewBox="0 0 18 23" aria-hidden="true"><path d="M1 1L16 13L9 14L6 21Z" fill="currentColor" stroke="white" strokeWidth="1.5" /></svg>
-          <span style={{ background: peer.color, marginTop: 15 + lane * 26 }}>{peer.name} <small>#{position.id.toString(36)}</small></span>
+          <span style={{ background: peer.color, position: "absolute", left: position.labelX, top: position.labelY + (position.labelY < 0 ? -1 : 1) * lane * 26, marginTop: 0 }}>{peer.name} <small>#{position.id.toString(36)}</small></span>
         </div>;
       })}</div>
     </>}

@@ -3,7 +3,7 @@
 These tarballs were produced with npm pack from the locally committed sources:
 
 - @sunaissu/calculator 1.0.0: f4488ef
-- @sunaissu/document-editor 1.0.0: 425df08
+- @sunaissu/document-editor 1.0.1: d4d6dc1
 - @sunaissu/noteboard 2.0.1: 03593d5
 
 They include the unpublished reviewed changes while retaining each repository's

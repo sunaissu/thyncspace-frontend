@@ -19,6 +19,7 @@ export interface Collaborator {
 export interface BaseNote {
   _id: string;
   contentRevision?: number;
+  isTemplate?: boolean;
   notebook?: string;
   sourcePath?: string;
   tags?: string[];

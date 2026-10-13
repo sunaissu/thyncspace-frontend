@@ -11,6 +11,7 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3011';
    const req = route.request(), path = new URL(req.url()).pathname;
    let body = note, status = 200;
    if (path.endsWith('/getUser')) body = { user };
+   else if (path.endsWith('/workspace')) body = { revision: 0, pinned: [], recent: [], searches: [] };
    else if (path.endsWith('/csrf-token')) body = { token: 'fixture' };
    else if (path.endsWith('/shared')) body = [];
    else if (path.endsWith('/notes')) body = [note];

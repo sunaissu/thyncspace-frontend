@@ -29,7 +29,8 @@ Object.assign(process.env, { CLIENT_URL: 'http://localhost:3000', COLLABORATION_
     const endpoint = new URL(route.request().url()).pathname;
     let body;
     if (endpoint.endsWith('/getUser')) body = { user: { _id: user.id, username: user.username } };
-    else if (endpoint.endsWith('/csrf-token')) body = { token: 'fixture' };
+    else if (endpoint.endsWith('/workspace')) body = { revision: 0, pinned: [], recent: [], searches: [] };
+   else if (endpoint.endsWith('/csrf-token')) body = { token: 'fixture' };
     else if (endpoint.endsWith('/collaboration-token')) body = { token: createCollaborationToken(note.id, user.id) };
     else if (endpoint.endsWith('/shared')) body = [];
     else { const current = (await Note.findById(note.id)).toObject(); body = endpoint.endsWith('/notes') ? [current] : current; }

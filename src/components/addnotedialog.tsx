@@ -6,17 +6,20 @@ import {
   XIcon,
 } from "@phosphor-icons/react";
 import React, { useEffect, useRef, useState } from "react";
-import { NoteType } from "../model/note";
+import { NoteType, type Note } from "../model/note";
 
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (type: NoteType) => Promise<void> | void;
+  onSave: (type: NoteType, template?: Note) => Promise<void> | void;
+  templates?: Note[];
+  defaultType?: NoteType;
 }
 
-const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave }) => {
+const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave, templates = [], defaultType = NoteType.Document }) => {
   const [loadingType, setLoadingType] = useState<NoteType | null>(null);
   const [error, setError] = useState("");
+  const [templateSearch, setTemplateSearch] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
   const firstChoiceRef = useRef<HTMLButtonElement>(null);
 
@@ -66,13 +69,13 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave }) => {
     }
   };
 
-  const addNote = async (type: NoteType) => {
+  const addNote = async (type: NoteType, template?: Note) => {
     if (loadingType) return;
     setLoadingType(type);
     setError("");
 
     try {
-      await onSave(type);
+      await onSave(type, template);
       onOpenChange(false);
     } catch (createError) {
       console.error("Failed to create note", createError);
@@ -120,7 +123,7 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave }) => {
 
         <div className="new-note-choices">
           <button
-            ref={firstChoiceRef}
+            ref={defaultType === NoteType.Document ? firstChoiceRef : undefined}
             type="button"
             className="new-note-choice"
             onClick={() => addNote(NoteType.Document)}
@@ -144,6 +147,7 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave }) => {
           <button
             type="button"
             className="new-note-choice"
+            ref={defaultType === NoteType.Whiteboard ? firstChoiceRef : undefined}
             onClick={() => addNote(NoteType.Whiteboard)}
             disabled={Boolean(loadingType)}
           >
@@ -163,6 +167,13 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave }) => {
           </button>
         </div>
 
+        <section className="note-template-picker" aria-label="Your templates">
+          <h3>Your templates</h3>
+          {templates.length ? <>
+            <label>Find a template<input value={templateSearch} onChange={event => setTemplateSearch(event.target.value)} placeholder="Search templates" /></label>
+            <div className="template-options">{templates.filter(note => note.title.toLowerCase().includes(templateSearch.toLowerCase())).map(note => <button className="btn-ghost" type="button" key={note._id} disabled={Boolean(loadingType)} onClick={() => void addNote(note.type, note)}>{note.title}<small>{note.type === NoteType.Whiteboard ? "Board" : "Document"} · create private copy</small></button>)}</div>
+          </> : <p>Mark any owned document or board as a template in Organize and recover.</p>}
+        </section>
         {error && <p className="new-note-dialog-error" role="alert">{error}</p>}
 
         <footer className="new-note-dialog-footer">

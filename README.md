@@ -63,7 +63,7 @@ See the backend repository's deployment runbooks for coordinated releases.
 
 The three editors/calculator packages are pinned to tarballs in `vendor/` so
 `npm ci` installs the reviewed code without an unpublished registry version.
-Sources: calculator `f4488ef`, document-editor `425df08`, Noteboard `03593d5`.
+Sources: calculator `f4488ef`, document-editor `d4d6dc1`, Noteboard `03593d5`.
 Keep these artifacts checked in until a coordinated npm release replaces them.
 The host uses DocumentEditor and each Yjs binding's local undo history directly.
 
@@ -76,13 +76,7 @@ Restoration creates a private note with a new ID; existing notes and live edits
 are not overwritten. Restoring trash consumes its old entry. Share restored
 notes again when needed. The matching backend update is required.
 
-Calculator insertion into a document now keeps a versioned Markdown block with
-the expression, numeric variables, angle mode, formatting, and numerical-operation
-settings. Open **Calculator** to edit the expression/variables and recalculate a
-saved block. At most 20 blocks are shown per note; remaining blocks stay in the
-Markdown. These blocks travel with Markdown export/import. Canvas calculator
-insertion remains a text result; cross-note references, units, and dependency
-graphs are future work.
+The calculator remains private to the current user. See the collaboration section below.
 
 ## Regression checks
 
@@ -124,3 +118,35 @@ Shared documents and boards show named pointer cursors and a participant list. E
 Each person pans and zooms a board independently. Cursor positions use board coordinates and are projected through the viewer's local viewport. The noteboard `getViewport()` API avoids serializing elements during pointer movement.
 
 Run `npm run test:presence` against the local review frontend to check two authenticated accounts, separate tabs, disconnect cleanup, document/board pointers, private calculations, and local navigation using the sibling backend with disposable MongoDB. Authentication-page responses are fixtures; collaboration tokens, permissions, WebSockets, and storage use the real backend.
+
+## Workspace tools
+
+Notebook paths such as Research/Physics create nested groups. Organize and recover
+can move up to 100 owned notes together and rename or merge tags across active
+owned notes. These actions change organization only, preserving current content.
+Mark a document or board as a reusable template to offer it in New note; creation
+copies its content into a new private note without sharing or template status.
+
+Advanced search combines owner, type, exact tag, updated-date boundaries (UTC),
+notebook and text. It shows matching content snippets. Save up to 20 named views.
+Pins (up to 100), the last 40 opened notes, and saved views belong to the signed-in
+account and are stored on the backend. Pinned notes sort first; Recently opened
+uses visit order and has an explicit clear action. Access checks still apply.
+
+Tasks gathers Markdown checkboxes outside fenced code, with completion/overdue
+filters and source-note links. Use due:YYYY-MM-DD or the calendar emoji followed
+by an ISO date. Open the source note to change a task; the overview does not edit
+notes implicitly. The list is capped at 5,000 tasks, paged 50 at a time.
+
+Split view keeps two different notes mounted with independent editing, undo and
+save state. Narrow screens stack the panes. Commands (Ctrl/Cmd+Shift+P) finds notes
+and opens creation, import and recovery actions with keyboard navigation.
+
+Settings provides editor mode, font size, reading/full width and new-note type.
+These preferences are scoped to the account in this browser. Account storage
+reports content, history and collaboration bytes and links to notes and trash
+for deliberate cleanup; it excludes database overhead and indexes.
+
+Version comparisons render document previews and a changed text range, or board
+previews with added/removed/changed object counts. Original source remains available.
+Only five prior versions are retained, including named versions.

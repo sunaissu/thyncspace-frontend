@@ -304,9 +304,9 @@ export async function recoverNote(noteId: string, versionId?: string): Promise<N
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ versionId }),
   })).json();
 }
-export async function updateNoteOrganization(noteId: string, notebook: string, tags: string[]): Promise<Note> {
+export async function updateNoteOrganization(noteId: string, notebook: string, tags: string[], isTemplate?: boolean): Promise<Note> {
   return (await fetchData(env.SERVER_URL + "/api/notes/" + noteId + "/organization", {
-    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notebook, tags }),
+    method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ notebook, tags, isTemplate }),
   })).json();
 }
 
@@ -319,3 +319,23 @@ export async function renameNoteVersion(noteId: string, versionId: string, label
 export async function permanentlyDeleteNote(noteId: string): Promise<void> {
   await fetchData(env.SERVER_URL + "/api/notes/trash/" + noteId, { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ confirmation: noteId }) });
 }
+
+export interface StorageUsage {
+  totals: { notes: number; totalBytes: number; contentBytes: number; historyBytes: number; collaborationBytes: number; trashBytes: number };
+  largest: Array<{ _id: string; title: string; type: string; status: string; totalBytes: number }>;
+  noteLimitBytes: number;
+}
+export async function fetchStorageUsage(): Promise<StorageUsage> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/storage")).json();
+}
+
+export type OrganizationAction = { action: "move"; noteIds: string[]; notebook: string } | { action: "rename-tag"; from: string; to: string };
+export async function bulkOrganizeNotes(action: OrganizationAction): Promise<{ affected: number }> {
+  return (await fetchData(env.SERVER_URL + "/api/notes/organization/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) })).json();
+}
+
+export interface SavedSearch { id: string; name: string; query: string; notebook: string; tag: string; owner: "all" | "mine" | "shared"; type: "all" | "document" | "whiteboard"; from: string; to: string; view: "all" | "shared" | "documents" | "boards" | "favorites" | "pinned" | "recent" }
+export interface WorkspacePreferences { revision: number; pinned: string[]; recent: Array<{ noteId: string; openedAt: string }>; searches: SavedSearch[] }
+export type WorkspaceAction = { action: "pin" | "unpin" | "open"; noteId: string } | { action: "clear-recent" } | { action: "save-search"; search: SavedSearch } | { action: "delete-search"; id: string };
+export async function fetchWorkspacePreferences(): Promise<WorkspacePreferences> { return (await fetchData(env.SERVER_URL + "/api/notes/workspace")).json(); }
+export async function updateWorkspacePreferences(action: WorkspaceAction): Promise<WorkspacePreferences> { return (await fetchData(env.SERVER_URL + "/api/notes/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(action) })).json(); }

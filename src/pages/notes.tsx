@@ -1,3 +1,9 @@
+import AdvancedSearch from "../components/advancedSearch";
+import { useWorkspacePreferences } from "../hooks/useWorkspacePreferences";
+import { emptySearchFilters, matchesFilters, noteSearchSnippet } from "../util/noteSearch";
+import TaskOverview from "../components/taskOverview";
+import CommandPalette from "../components/commandPalette";
+import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import NoteLibrary from "../components/noteLibrary";
 import Head from "next/head";
 import dynamic from "next/dynamic";
@@ -10,6 +16,7 @@ import {
   FileTextIcon,
   MagnifyingGlassIcon,
   PlusIcon,
+  PushPinIcon,
   SidebarSimpleIcon,
   ShareNetworkIcon,
   SpinnerBallIcon,
@@ -45,7 +52,7 @@ interface NotesPageProps {
   loggedInUser: User | null;
 }
 
-type NoteFilter = "all" | "shared" | "documents" | "boards" | "favorites";
+type NoteFilter = NotesApi.SavedSearch["view"];
 
 const relativeDate = (date: string) => {
   const timestamp = new Date(date).getTime();
@@ -78,11 +85,18 @@ const notePreview = (note: Note) => {
 
 const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const router = useRouter();
+  const workspace = useWorkspacePreferences(loggedInUser?._id);
+  const { recordOpen } = workspace;
+  const [searchFilters, setSearchFilters] = useState(emptySearchFilters);
+  const editorPreferences = useEditorPreferences(loggedInUser?._id);
   const [notes, setNotes] = useState<Note[]>([]);
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [notebookFilter, setNotebookFilter] = useState("");
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<NoteFilter>("all");
+  const [secondaryNoteId, setSecondaryNoteId] = useState<string | null>(null);
+  const [secondaryStatus, setSecondaryStatus] = useState<"idle" | "saving" | "saved" | "error" | "synced">("idle");
   const [selectedNoteId, setSelectedNoteId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSwitchingNote, setIsSwitchingNote] = useState(false);
@@ -98,6 +112,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   useEffect(() => {
     if (!router.isReady) return;
+    if (router.query.library === "trash") setLibraryOpen(true);
     let cancelled = false;
     const requestedNoteId =
       typeof router.query.noteId === "string" ? router.query.noteId : null;
@@ -138,7 +153,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     }
     void loadNotes();
     return () => { cancelled = true; };
-  }, [router.isReady, router.query.filter, router.query.noteId]);
+  }, [router.isReady, router.query.filter, router.query.noteId, router.query.library]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -152,8 +167,12 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     return () => window.removeEventListener("keydown", handleShortcut);
   }, []);
 
+  useEffect(() => { if (selectedNoteId) recordOpen(selectedNoteId); }, [selectedNoteId, recordOpen]);
+  useEffect(() => { if (secondaryNoteId) recordOpen(secondaryNoteId); }, [secondaryNoteId, recordOpen]);
+
   const closeOrSwitchNote = (newId: string | null) => {
     if (newId === selectedNoteId) return;
+    if (newId === secondaryNoteId) setSecondaryNoteId(null);
     setSelectedNoteId(newId);
     if (newId) {
       setIsSwitchingNote(true);
@@ -161,10 +180,11 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     }
   };
 
-  const handleCreateNote = async (type: NoteType) => {
+  const handleCreateNote = async (type: NoteType, template?: Note) => {
     try {
       const newNote = (await NotesApi.createNotes({
-        title: "Untitled Note",
+        title: template ? `${template.title.slice(0, 190)} copy` : "Untitled Note",
+        text: template ? typeof template.content === "string" ? template.content : JSON.stringify(template.content) : undefined,
         type,
       })) as Note;
       closeOrSwitchNote(newNote._id);
@@ -281,9 +301,12 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   const filteredNotes = useMemo(() => {
     return notes
+      .filter(note => matchesFilters(note, searchFilters, loggedInUser?._id))
       .filter((note) => noteMatchesSearch(note, search) || (note.tags ?? []).some(tag => tag.includes(search.trim().toLowerCase())) || (note.notebook ?? "").toLowerCase().includes(search.trim().toLowerCase()))
-      .filter(note => !notebookFilter || note.notebook === notebookFilter)
+      .filter(note => !notebookFilter || (note.notebook === notebookFilter || note.notebook?.startsWith(notebookFilter + "/")))
       .filter((note) => {
+        if (filter === "pinned") return workspace.data.pinned.includes(note._id);
+        if (filter === "recent") return workspace.data.recent.some(entry => entry.noteId === note._id);
         if (filter === "shared") return note.owner !== loggedInUser?._id;
         if (filter === "documents") return note.type === NoteType.Document;
         if (filter === "boards") return note.type === NoteType.Whiteboard;
@@ -295,13 +318,18 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
         return true;
       })
       .sort(
-        (first, second) =>
-          new Date(second.updatedAt).getTime() -
-          new Date(first.updatedAt).getTime(),
+        (first, second) => {
+          if (filter === "recent") return workspace.data.recent.findIndex(entry => entry.noteId === first._id) - workspace.data.recent.findIndex(entry => entry.noteId === second._id);
+          return Number(workspace.data.pinned.includes(second._id)) - Number(workspace.data.pinned.includes(first._id)) || new Date(second.updatedAt).getTime() - new Date(first.updatedAt).getTime();
+        },
       );
-  }, [filter, loggedInUser, notes, search, notebookFilter]);
+  }, [filter, loggedInUser, notes, search, notebookFilter, searchFilters, workspace.data]);
 
   const activeNote = notes.find((note) => note._id === selectedNoteId) || null;
+  const secondaryNote = notes.find(note => note._id === secondaryNoteId && note._id !== selectedNoteId) ?? null;
+  const secondaryOwner = secondaryNote?.owner === loggedInUser?._id;
+  const secondaryLive = !secondaryOwner || Boolean(secondaryNote?.sharedWith.length);
+  const secondaryEditable = secondaryOwner || Boolean(secondaryNote?.sharedWith.some(peer => peer.userId === loggedInUser?._id && peer.permission === "editor"));
   const isFavorite =
     activeNote && loggedInUser
       ? isNoteFavorited(activeNote, loggedInUser._id)
@@ -322,6 +350,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
 
   const filterOptions: Array<{ value: NoteFilter; label: string }> = [
     { value: "all", label: "All notes" },
+    { value: "pinned", label: "Pinned" },
+    { value: "recent", label: "Recently opened" },
     { value: "shared", label: "Shared with me" },
     { value: "documents", label: "Documents" },
     { value: "boards", label: "Whiteboards" },
@@ -349,6 +379,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
               </div>
             </div>
             <div className="workspace-actions">
+              <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
+              <CommandPalette notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
               <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
               <button
                 type="button"
@@ -375,10 +407,13 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
             </div>
           </header>
 
+          {tasksOpen && <TaskOverview notes={notes} onOpenNote={closeOrSwitchNote} onClose={() => setTasksOpen(false)} />}
           {libraryOpen && <NoteLibrary key={isOwner ? activeNote?._id : "trash"} note={isOwner ? activeNote : null}
+            ownedNotes={notes.filter(note => note.owner === loggedInUser?._id)}
+            onBulkUpdated={updated => { const byId = new Map(updated.map(note => [note._id, note])); setNotes(current => current.map(note => { const saved = byId.get(note._id); return saved ? { ...note, notebook: saved.notebook, tags: saved.tags, isTemplate: saved.isTemplate } : note; })); }}
             onClose={() => setLibraryOpen(false)}
             onRecovered={note => { setNotes(current => [note, ...current]); setSelectedNoteId(note._id); setLibraryOpen(false); setSearch(""); setFilter("all"); setNotebookFilter(""); }}
-            onOrganizationChange={saved => { setNotes(current => current.map(note => note._id === saved._id ? { ...note, notebook: saved.notebook, tags: saved.tags } : note)); setLibraryOpen(false); }} />}
+            onOrganizationChange={saved => { setNotes(current => current.map(note => note._id === saved._id ? { ...note, notebook: saved.notebook, tags: saved.tags, isTemplate: saved.isTemplate } : note)); setLibraryOpen(false); }} />}
           {error && (
             <p className="new-note-dialog-error" role="alert">
               {error}{" "}
@@ -393,13 +428,14 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           >
             <aside className="note-browser" id="note-browser-panel">
               <div className="note-browser-tools">
-                <label className="notebook-filter">Notebook<select value={notebookFilter} onChange={event => setNotebookFilter(event.target.value)}><option value="">All notebooks</option>{[...new Set(notes.map(note => note.notebook).filter((name): name is string => Boolean(name)))].sort().map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+                <label className="notebook-filter">Notebook<select value={notebookFilter} onChange={event => setNotebookFilter(event.target.value)}><option value="">All notebooks</option>{[...new Set(notes.flatMap(note => (note.notebook ?? "").split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"))).filter(Boolean))].sort().map(name => <option key={name} value={name}>{name}</option>)}</select></label>
                 <label className="note-search">
                   <MagnifyingGlassIcon size={17} />
                   <input
                     ref={searchInputRef}
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
+                    maxLength={300}
                     placeholder="Search everything"
                     aria-label="Search notes"
                   />
@@ -411,6 +447,12 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                   )}
                 </label>
 
+                <AdvancedSearch filters={searchFilters} onChange={setSearchFilters} searches={workspace.data.searches}
+                  onApply={saved => { setSearch(saved.query); setNotebookFilter(saved.notebook); setFilter(saved.view); setSearchFilters({ owner: saved.owner, type: saved.type, tag: saved.tag, from: saved.from, to: saved.to }); }}
+                  onSave={name => { void workspace.update({ action: "save-search", search: { id: crypto.randomUUID(), name, query: search.trim(), notebook: notebookFilter, view: filter, ...searchFilters } }); }}
+                  onDelete={id => { void workspace.update({ action: "delete-search", id }); }} />
+                {workspace.error && <p role="alert">{workspace.error}</p>}
+                {filter === "recent" && <button type="button" className="btn-ghost" onClick={() => { void workspace.update({ action: "clear-recent" }); }}>Clear recently opened</button>}
                 <label className="note-filter-select">
                   <span>Filter notes</span>
                   <select
@@ -463,7 +505,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                               {relativeDate(note.updatedAt)}
                             </time>
                           </span>
-                          <span className="note-list-preview">{notePreview(note)}</span>
+                          <span className="note-list-preview">{search.trim() ? noteSearchSnippet(note, search) || notePreview(note) : notePreview(note)}</span>
                           <span className="note-list-meta">
                             {favorite && <StarIcon size={11} weight="fill" />}
                             {note.type === NoteType.Document ? "Document" : "Whiteboard"}
@@ -549,6 +591,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                     </div>
 
                     <div className="active-note-actions">
+                      <button type="button" className="icon-button split-view-toggle" aria-label="Split view" aria-pressed={Boolean(secondaryNote)} disabled={notes.length < 2} title="Keep two notes open independently" onClick={() => { setSecondaryStatus("idle"); setSecondaryNoteId(secondaryNote ? null : (notes.find(note => note._id !== activeNote._id && note.type !== activeNote.type) ?? notes.find(note => note._id !== activeNote._id))?._id ?? null); }}><SquaresFourIcon size={17} /><span>Split view</span></button>
+                      <button type="button" className="icon-button" aria-label={workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"} title={workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"} aria-pressed={workspace.data.pinned.includes(activeNote._id)} onClick={() => { void workspace.update({ action: workspace.data.pinned.includes(activeNote._id) ? "unpin" : "pin", noteId: activeNote._id }); }}><PushPinIcon size={18} weight={workspace.data.pinned.includes(activeNote._id) ? "fill" : "regular"} /></button>
                       <button
                         type="button"
                         className={isFavorite ? "icon-button is-favorite" : "icon-button"}
@@ -583,7 +627,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                     </div>
                   </header>
 
-                  <div className="active-note-editor">
+                  <div className={secondaryNote ? "note-panes has-secondary" : "note-panes"}>
+                  <div className="active-note-editor primary-note-pane">
                     {isSwitchingNote ? (
                       <div className="note-switching">
                         <SpinnerBallIcon className="spin" size={30} />
@@ -598,6 +643,11 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                         onSaveStatusChange={setSaveStatus}
                       />
                     )}
+                  </div>
+                  {secondaryNote && <section className="secondary-note-pane" aria-label="Second note pane">
+                    <header><label>Second note<select aria-label="Second note" value={secondaryNote._id} onChange={event => { setSecondaryStatus("idle"); setSecondaryNoteId(event.target.value); }}>{notes.filter(note => note._id !== activeNote._id).map(note => <option value={note._id} key={note._id}>{note.title}</option>)}</select></label><span role="status">{secondaryStatus === "error" ? "Unsaved changes" : secondaryStatus === "idle" ? "Waiting to sync" : secondaryStatus === "saved" ? "Saved" : secondaryStatus === "saving" ? "Saving" : "Synced"}</span><button type="button" className="btn-ghost" onClick={() => setSecondaryNoteId(null)} aria-label="Close second pane">×</button></header>
+                    <div className="active-note-editor"><ActiveNoteEditor key={secondaryNote._id + (secondaryLive ? ":live" : ":private")} note={secondaryNote} user={loggedInUser} readOnly={!secondaryEditable} collaborationEnabled={secondaryLive} onSaveStatusChange={setSecondaryStatus} /></div>
+                  </section>}
                   </div>
                 </>
               ) : (
@@ -637,6 +687,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
         </div>
 
         <AddNoteDialog
+          defaultType={editorPreferences.preferences.noteType as NoteType}
+          templates={notes.filter(note => note.owner === loggedInUser?._id && note.isTemplate)}
           open={newNoteDialogOpen}
           onOpenChange={setNewNoteDialogOpen}
           onSave={handleCreateNote}

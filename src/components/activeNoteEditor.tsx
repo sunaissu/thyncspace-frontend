@@ -1,3 +1,4 @@
+import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import CollaborationPresence from "./collaborationPresence";
 import React, {
   useCallback,
@@ -90,6 +91,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   user,
   onSaveStatusChange,
 }) => {
+  const editorPreferences = useEditorPreferences(user?._id);
   const collaboration = useNoteCollaboration(
     note._id,
     user,
@@ -259,7 +261,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     value: privateValue,
   });
   const editorReady =
-    collaboration.ready &&
+    editorPreferences.ready && collaboration.ready &&
     (!collaboration.local || (localBindingsReady && privateAutosave.ready));
 
 
@@ -583,7 +585,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       <CollaborationPresence className="document-presence-surface" collaboration={collaboration} userId={user?._id}>
       <DocumentEditor
         ref={documentEditorRef}
-        className="thyncspace-document-editor"
+        className={`thyncspace-document-editor ${editorPreferences.preferences.lineWidth === "reading" ? "editor-reading-width" : ""}`}
+        defaultMode={editorPreferences.preferences.mode}
+        style={{ "--preferred-editor-font-size": `${editorPreferences.preferences.fontSize}px` } as React.CSSProperties}
         value={content}
         onChange={changeDocumentContent}
         history={documentBinding.history}
