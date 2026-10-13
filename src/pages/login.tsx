@@ -282,6 +282,7 @@ const Login: React.FC = () => {
             </button>
           </form>
 
+          <p style={{ marginTop: "1rem" }}><Link href="/recover/">Forgot your password?</Link></p>
           {/* Divider */}
           <div className="divider" />
 

@@ -284,6 +284,7 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
         </section>
 
         <section className="settings-section"><h2>Account privacy</h2><p>Download your account data and manage deletion requests.</p><Link className="btn-ghost" href="/privacy/">Manage account privacy</Link></section>
+        <section className="settings-section"><h2>Account security</h2><p>Verify your email and manage your password.</p><Link className="btn-ghost" href="/security/">Manage account security</Link></section>
         <DeviceSessions />
         <StorageUsagePanel />
         <section className="settings-section settings-note">

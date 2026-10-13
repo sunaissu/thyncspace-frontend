@@ -185,6 +185,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
           </button>
         </header>
 
+        <p id="share-identity-help">Use a username you have confirmed with your teammate, or an email they have verified in Account security.</p>
         <form className="share-note-form" onSubmit={addCollaborator}>
           <label>
             <span>Username or email</span>
@@ -193,6 +194,7 @@ const ShareNoteDialog: React.FC<ShareNoteDialogProps> = ({
               className="input-base"
               value={identifier}
               onChange={(event) => setIdentifier(event.target.value)}
+              aria-describedby="share-identity-help"
               placeholder="teammate@example.com"
               disabled={saving}
             />

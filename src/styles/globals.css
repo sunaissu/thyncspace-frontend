@@ -4539,3 +4539,8 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .workspace-tools-menu > a { display: block; padding: 12px; border-radius: 6px; }
 .workspace-actions { flex-wrap: wrap; }
 .workspace-topbar { flex-shrink: 0; }
+
+.account-action-page { width: min(100%, 36rem); margin: 3rem auto; padding: 1.5rem; display: grid; gap: 1rem; overflow-wrap: anywhere; }
+.account-action-page form, .account-action-page label { display: grid; gap: .7rem; }
+.account-action-page form { gap: 1.2rem; }
+.account-action-page input { width: 100%; padding: .8rem; border: 1px solid var(--color-border); border-radius: .6rem; background: var(--color-surface); color: var(--color-text); }

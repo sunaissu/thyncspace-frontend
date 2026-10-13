@@ -56,7 +56,7 @@ const request = async (
   const method = (init.method ?? "GET").toUpperCase();
   const headers = new Headers(init.headers);
   const path = typeof input === "string" ? new URL(input, env.SERVER_URL).pathname : "";
-  if (expectedAccount && !headers.has("X-Account-Id") && !path.startsWith("/api/auth/") && path !== "/api/users/getUser") headers.set("X-Account-Id", expectedAccount);
+  if (expectedAccount && !headers.has("X-Account-Id") && !["/api/auth/login", "/api/auth/register", "/api/auth/csrf-token", "/api/auth/request-reset", "/api/auth/account-action"].includes(path) && path !== "/api/users/getUser") headers.set("X-Account-Id", expectedAccount);
   if (isMutation(method)) {
     headers.set("X-CSRF-Token", await loadCsrfToken());
   }
@@ -372,3 +372,14 @@ export async function downloadAccountData(): Promise<Blob> {
   if (end.kind !== "complete" || !Number.isInteger(end.records) || end.records < 1) throw new Error("The account export was incomplete. Try again.");
   return blob;
 }
+
+export interface AccountSecurity { provider: "local" | "google"; verified: boolean; emailDeliveryAvailable: boolean; }
+export async function fetchAccountSecurity(): Promise<AccountSecurity> { return (await fetchData(`${env.SERVER_URL}/api/auth/security`, { cache: "no-store" })).json(); }
+async function securityMutation(path: string, body: unknown): Promise<string> {
+  const response = await fetchData(`${env.SERVER_URL}/api/auth/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, false);
+  return (await response.json()).message;
+}
+export const requestPasswordReset = (email: string) => securityMutation("request-reset", { email });
+export const requestEmailVerification = () => securityMutation("request-verification", {});
+export const confirmAccountAction = (purpose: "reset" | "verify", token: string, password?: string) => securityMutation("account-action", { purpose, token, password });
+export const changeAccountPassword = (currentPassword: string, newPassword: string) => securityMutation("change-password", { currentPassword, newPassword });
