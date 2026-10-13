@@ -1,3 +1,4 @@
+import AuthChallenge, { useAuthPolicy } from "../components/authChallenge";
 import Head from "next/head";
 import Link from "next/link";
 import { useRouter } from "next/router";
@@ -7,6 +8,9 @@ import env from "@/util/config";
 
 const Login: React.FC = () => {
   const router = useRouter();
+  const { policy, error: policyError, retry: retryPolicy } = useAuthPolicy();
+  const [botToken, setBotToken] = React.useState(""), [challengeReset, setChallengeReset] = React.useState(0);
+  const blocked = !policy || Boolean(policy.turnstileSiteKey && !botToken);
   const [email, setEmail] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
   const [errMessage, setErrMessage] = React.useState<string>("");
@@ -21,6 +25,7 @@ const Login: React.FC = () => {
 
   const loginClicked = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading || blocked) return;
     setErrMessage("");
     if (!email.trim() || !password) {
       setErrMessage("Please fill in all fields");
@@ -29,12 +34,13 @@ const Login: React.FC = () => {
 
     try {
       setLoading(true);
-      await NotesApi.loginUser({ email: email.trim(), password });
+      await NotesApi.loginUser({ email: email.trim(), password, botToken });
       window.location.replace("/notes");
     } catch (error) {
       setErrMessage(error instanceof Error ? error.message : "Login failed");
     } finally {
       setLoading(false);
+      setBotToken(""); setChallengeReset(value => value + 1);
     }
   };
 
@@ -56,7 +62,7 @@ const Login: React.FC = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "2rem",
+          padding: "clamp(1rem, 4vw, 2rem)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -83,7 +89,7 @@ const Login: React.FC = () => {
             zIndex: 1,
             width: "100%",
             maxWidth: "420px",
-            padding: "2.5rem",
+            padding: "clamp(1rem, 5vw, 2.5rem)",
           }}
         >
           {/* Header */}
@@ -110,6 +116,8 @@ const Login: React.FC = () => {
             </p>
           </div>
 
+          {policyError && <p role="alert">{policyError} <button type="button" onClick={retryPolicy}>Retry sign-in options</button></p>}
+          {!policy && !policyError && <p role="status">Loading sign-in options...</p>}
           {/* Form */}
           <form
             style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}
@@ -130,6 +138,7 @@ const Login: React.FC = () => {
                 color: "#000",
                 borderColor: "#fff",
               }}
+              disabled={loading}
               onClick={redirectToGoogleAuth}
             >
               <svg
@@ -178,7 +187,7 @@ const Login: React.FC = () => {
               />
             </div>
             <div>
-              <label
+              <label htmlFor="login-email"
                 style={{
                   display: "block",
                   fontSize: "0.8rem",
@@ -205,7 +214,7 @@ const Login: React.FC = () => {
             </div>
 
             <div>
-              <label
+              <label htmlFor="login-password"
                 style={{
                   display: "block",
                   fontSize: "0.8rem",
@@ -266,6 +275,7 @@ const Login: React.FC = () => {
               </div>
             )}
 
+            <AuthChallenge siteKey={policy?.turnstileSiteKey ?? ""} action="login" reset={challengeReset} onToken={setBotToken} />
             <button
               className="btn-primary"
               style={{
@@ -275,7 +285,7 @@ const Login: React.FC = () => {
                 marginTop: "0.25rem",
               }}
               id="login-submit"
-              disabled={loading}
+              disabled={loading || blocked}
               type="submit"
             >
               {loading ? "Logging in…" : "Log In →"}

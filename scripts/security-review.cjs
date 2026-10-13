@@ -10,7 +10,8 @@ const origin = process.env.REVIEW_URL || 'http://127.0.0.1:3011';
   await page.route('**/api/**', async route => {
    const req = route.request(), path = new URL(req.url()).pathname;
    let body, status = 200;
-   if (path.endsWith('/getUser')) { status = signedIn ? 200 : 401; body = signedIn ? { user } : { error: 'Not signed in' }; }
+   if (path.endsWith('/policy')) body = { registrationEnabled: true, turnstileSiteKey: '' };
+   else if (path.endsWith('/getUser')) { status = signedIn ? 200 : 401; body = signedIn ? { user } : { error: 'Not signed in' }; }
    else if (path.endsWith('/csrf-token')) body = { token: 'fixture' };
    else if (path.endsWith('/request-reset')) { resets++; expect(req.postDataJSON().email).toBe('person@example.test'); body = { message: 'If this address belongs to a local account, a recovery link will arrive.' }; }
    else if (path.endsWith('/account-action')) { confirmations++; expect(req.postDataJSON().token).toBe('a'.repeat(64)); body = { message: req.postDataJSON().purpose === 'reset' ? 'Password changed. Existing sessions are signed out.' : 'Email verified.' }; }

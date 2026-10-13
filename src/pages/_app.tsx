@@ -134,6 +134,8 @@ export default function App({ Component, pageProps }: AppProps) {
       </ThemeProvider>
     );
   }
+  if (loggedInUser?.workspaceAccess === false && ["/notes", "/shared", "/favorites", "/capture"].includes(router.pathname)) return <ThemeProvider><Navbar loggedInUser={loggedInUser} onLogout={handleLogout} /><main className="account-action-page"><h1>Verify your email to open the workspace</h1><p>Open Account security to request a verification link. Account export and deletion remain available.</p><p><a href="/security/">Account security</a> · <a href="/privacy/">Account privacy</a></p><button type="button" className="btn-primary" onClick={fetchLoggedInUser}>Check verification again</button></main></ThemeProvider>;
+
   return (
     <ThemeProvider>
       <div>

@@ -4776,3 +4776,7 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .companion-hint { font-size: .8rem; color: var(--color-text-muted); }
 .companion-dialog button:disabled { opacity: .5; cursor: not-allowed; }
 @media(max-width:760px) { .companion-dialog { padding: 16px; } .companion-dialog > header { top: -16px; } }
+
+.auth-challenge { min-width: 0; overflow-wrap: anywhere; }
+.auth-challenge p { margin: 0 0 .75rem; font-size: .875rem; color: var(--color-text-muted); }
+@media (max-width: 480px) { .auth-challenge { margin-inline: -.5rem; } }

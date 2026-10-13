@@ -108,7 +108,11 @@ export async function getLoginUser(): Promise<User> {
   return body.user;
 }
 
+export interface AuthPolicy { registrationEnabled: boolean; turnstileSiteKey: string }
+export async function fetchAuthPolicy(): Promise<AuthPolicy> { const response = await fetchData(`${env.SERVER_URL}/api/auth/policy`, { method: "GET" }, false); const value = await response.json(); if (!value || typeof value.registrationEnabled !== "boolean" || typeof value.turnstileSiteKey !== "string" || !/^[A-Za-z0-9_-]{0,100}$/.test(value.turnstileSiteKey)) throw new Error("Invalid sign-in configuration."); return { registrationEnabled: value.registrationEnabled, turnstileSiteKey: value.turnstileSiteKey }; }
+
 interface RegisterCredentials {
+  botToken?: string;
   username: string;
   email: string;
   password: string;
@@ -130,6 +134,7 @@ export async function registerUser(user: RegisterCredentials): Promise<User> {
 }
 
 interface LoginCredentials {
+  botToken?: string;
   email: string;
   password: string;
 }
@@ -379,7 +384,7 @@ async function securityMutation(path: string, body: unknown): Promise<string> {
   const response = await fetchData(`${env.SERVER_URL}/api/auth/${path}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }, false);
   return (await response.json()).message;
 }
-export const requestPasswordReset = (email: string) => securityMutation("request-reset", { email });
+export const requestPasswordReset = (email: string, botToken?: string) => securityMutation("request-reset", { email, botToken });
 export const requestEmailVerification = () => securityMutation("request-verification", {});
 export const confirmAccountAction = (purpose: "reset" | "verify", token: string, password?: string) => securityMutation("account-action", { purpose, token, password });
 export const changeAccountPassword = (currentPassword: string, newPassword: string) => securityMutation("change-password", { currentPassword, newPassword });

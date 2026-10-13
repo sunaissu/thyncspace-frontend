@@ -303,3 +303,10 @@ The dialog shows the 1,000-note, 100-file, 175 MiB encoded-record and 50 MiB att
 ### Obsidian companion
 
 Open Commands > Obsidian companion, or use the mobile workspace tools, to create a named connection and download the desktop plugin. Select private documents, confirm optional linked-file access, and copy the token once. Connections expire after 30 days and can be revoked independently. The companion reviews both changed copies, preserves missing/local files, and supports optional five-minute sync after an initial review. Calculator state and shared notes are outside its scope. See [installation, conflict handling and limits](integrations/obsidian/README.md).
+
+
+### Protected authentication forms
+
+Sign-in, registration and recovery load the backend authentication policy before enabling local submission. Closed registration has an explicit message and leaves existing-account sign-in available. Optional Turnstile challenges load only when configured, carry the correct action, and reset after each request or expiry. Failed policy/widget loading has a retry action. Forms now associate every visible label with its input and fit 320px screens. Run npm run test:auth-policy for the mocked-widget regression and npm run test:security for account recovery.
+
+When verified-email access is enabled on the backend, unverified accounts see a verification prompt before the online workspace. Account security and account privacy remain reachable. Check verification again refreshes the authenticated profile after completing the email link.

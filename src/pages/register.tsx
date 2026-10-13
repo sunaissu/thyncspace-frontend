@@ -1,3 +1,4 @@
+import AuthChallenge, { useAuthPolicy } from "../components/authChallenge";
 import Head from "next/head";
 import Link from "next/link";
 import React from "react";
@@ -6,6 +7,9 @@ import env from "@/util/config";
 
 const SignUp: React.FC = () => {
   const [username, setUsername] = React.useState<string>("");
+  const { policy, error: policyError, retry: retryPolicy } = useAuthPolicy();
+  const [botToken, setBotToken] = React.useState(""), [challengeReset, setChallengeReset] = React.useState(0);
+  const blocked = !policy || Boolean(policy.turnstileSiteKey && !botToken) || !policy.registrationEnabled;
   const [email, setEmail] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
   const [checkPassword, setCheckPassword] = React.useState<string>("");
@@ -14,6 +18,7 @@ const SignUp: React.FC = () => {
 
   const registerClicked = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (loading || blocked) return;
     setErrMessage("");
     const normalizedUsername = username.trim().replace(/\s+/g, " ");
     const normalizedEmail = email.trim();
@@ -44,6 +49,7 @@ const SignUp: React.FC = () => {
       await NotesApi.registerUser({
         username: normalizedUsername,
         email: normalizedEmail,
+        botToken,
         password,
       });
       window.location.replace("/notes");
@@ -53,6 +59,7 @@ const SignUp: React.FC = () => {
       );
     } finally {
       setLoading(false);
+      setBotToken(""); setChallengeReset(value => value + 1);
     }
   };
 
@@ -76,7 +83,7 @@ const SignUp: React.FC = () => {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "2rem",
+          padding: "clamp(1rem, 4vw, 2rem)",
           position: "relative",
           overflow: "hidden",
         }}
@@ -103,7 +110,7 @@ const SignUp: React.FC = () => {
             zIndex: 1,
             width: "100%",
             maxWidth: "440px",
-            padding: "2.5rem",
+            padding: "clamp(1rem, 5vw, 2.5rem)",
           }}
         >
           {/* Header */}
@@ -130,6 +137,9 @@ const SignUp: React.FC = () => {
             </p>
           </div>
 
+          {policyError && <p role="alert">{policyError} <button type="button" onClick={retryPolicy}>Retry sign-in options</button></p>}
+          {!policy && !policyError && <p role="status">Loading sign-in options...</p>}
+          {policy && !policy.registrationEnabled && <p role="status">New registrations are temporarily closed. Existing accounts can still <Link href="/login/">sign in</Link>.</p>}
           {/* Form */}
           <form
             style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}
@@ -150,6 +160,7 @@ const SignUp: React.FC = () => {
                 color: "#000",
                 borderColor: "#fff",
               }}
+              disabled={loading || !policy?.registrationEnabled}
               onClick={redirectToGoogleAuth}
             >
               <svg
@@ -228,7 +239,7 @@ const SignUp: React.FC = () => {
               },
             ].map((field) => (
               <div key={field.label}>
-                <label
+                <label htmlFor={field.id}
                   style={{
                     display: "block",
                     fontSize: "0.78rem",
@@ -309,6 +320,7 @@ const SignUp: React.FC = () => {
               </div>
             )}
 
+            <AuthChallenge siteKey={policy?.turnstileSiteKey ?? ""} action="register" reset={challengeReset} onToken={setBotToken} />
             <button
               className="btn-primary"
               style={{
@@ -318,7 +330,7 @@ const SignUp: React.FC = () => {
                 marginTop: "0.25rem",
               }}
               id="register-submit"
-              disabled={loading}
+              disabled={loading || blocked}
               type="submit"
             >
               {loading ? "Creating account…" : "Create Account →"}
