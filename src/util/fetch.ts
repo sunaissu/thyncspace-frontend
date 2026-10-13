@@ -408,3 +408,6 @@ function readReminderList(value: ReminderList): ReminderList {
 }
 export async function fetchReminders(): Promise<ReminderList> { return readReminderList(await (await fetchData(env.SERVER_URL + "/api/notes/reminders", { cache: "no-store" })).json()); }
 export async function updateReminders(input: { action: "create" | "complete" | "snooze" | "delete"; expectedRevision: number; id: string; noteId?: string; dueAt?: string; repeatDays?: number; taskLine?: number; sourceText?: string }): Promise<ReminderList> { return readReminderList(await (await fetchData(env.SERVER_URL + "/api/notes/reminders", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(input) })).json()); }
+
+export async function fetchOfflineSyncNote(account: string, id: string): Promise<Note> { return (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(id), { cache: "no-store", headers: { "X-Account-Id": account } }, false)).json(); }
+export async function saveOfflineSyncNote(account: string, id: string, text: string, expectedRevision: number): Promise<Note> { return (await fetchData(env.SERVER_URL + "/api/notes/" + encodeURIComponent(id) + "/private", { method: "PATCH", headers: { "Content-Type": "application/json", "X-Account-Id": account }, body: JSON.stringify({ text, expectedRevision }) }, false)).json(); }

@@ -95,7 +95,7 @@ writes keep an in-memory copy during navigation and show a download option.
 
 Live edits persist CRDT state in IndexedDB. Reopening an accessible editable note
 merges retained changes and the server rechecks permissions on replay. This is draft
-recovery, not an offline note library. Reconnect keeps the editor mounted and pauses
+recovery; the opt-in offline library below handles cached browsing and private-note queues. Reconnect keeps the live editor mounted and pauses
 editing. Synced means received by the live service; Saved requires a database receipt
 matching current content. Preserve/download the draft if browser storage fails.
 
@@ -250,3 +250,15 @@ Open Commands > Reminders or the mobile workspace menu. Choose a note or an open
 A moved/changed task, completed task or unavailable source suppresses notifications. Open the source and replace a changed-task reminder when needed. The list shows these states explicitly. Reminders are included in account downloads/deletion and are never shared through the note.
 
 Browser notifications require an explicit opt-in and permission. The workspace checks about once a minute while open and online; this is not a push service for closed or sleeping browsers. Alerts contain a count, without source titles or task text. Supported browsers use Web Locks and account-scoped storage to avoid duplicates across tabs. Unavailable browser storage/permissions produce an error. Notification clicks focus the existing workspace without reloading pending edits, or open a new workspace when necessary. Run npm run test:reminders for schedule/review/snooze/source-change/mobile controls and notification opt-in/deduplication; OS notification UI is mocked in that test.
+
+## Opt-in offline library
+
+Save pending online edits, select a note, and choose Commands > Make selected note available offline (also in mobile Workspace tools). The consent prompt explains that the saved copy remains accessible after sign-out to people using this browser profile. Open /offline-library/ once while online to prepare its shell and editor assets. The production service worker caches that public static page and fingerprinted assets; authenticated API responses remain network-only. The offline fallback links to this library.
+
+The library keeps account-scoped document/board snapshots in IndexedDB, capped at 100 notes and 20 MiB per account including queued content. Each content value remains limited to 1 MiB. Private owned notes can be edited offline; Queue changes on this device confirms durable storage. Unqueued edits warn before leaving and can be downloaded. Shared copies are read-only here. Attachments from the separate attachment library are not cached; inline board image data remains part of board content. Existing live CRDT draft recovery continues separately.
+
+Synchronize queue explicitly rechecks the current signed-in account, each note's current access/private status, and its server revision. Every read/write pins the expected account in its header. Changed revisions retain the queue for comparison. Compare with server shows both values; choose the server copy or explicitly apply the offline version with another revision check. A lost save response is recognized by matching server content on retry. A note that becomes shared, disappears or loses access stays queued for recovery/download. Newer local edits in another tab are never discarded by stale writes/deletes.
+
+Downloads include the selected current edit or all cached/queued records for the chosen account. Removing a local copy requires confirmation. Damaged records remain available through raw recovery download before an explicit whole-library reset. Offline copies are separate from server account exports and remain until you remove them or clear browser storage. This page can read retained device copies without treating them as a server-authenticated session; online synchronization still requires authentication.
+
+Run npm run build, then npm run test:offline. The test serves the production export on a disposable loopback port and exercises actual service-worker navigation with the browser disconnected, document/board queue persistence, wrong-account rejection, revision review, lost-response retries, sharing changes, shared read-only copies and mobile widths. IndexedDB unit tests cover cross-tab races, byte/count limits, failed storage and damaged-record recovery.

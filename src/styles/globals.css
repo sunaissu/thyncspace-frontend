@@ -4617,3 +4617,27 @@ dialog.obsidian-backdrop { width: 100%; height: 100%; max-width: none; max-heigh
 .reminder-create summary { cursor: pointer; font-weight: 600; }
 .reminder-dialog button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 760px) { .reminder-dialog { padding: 16px; } .reminder-dialog header { top: -16px; } .reminder-dialog header p { display: none; } }
+
+.offline-library { padding: 24px; max-width: 1800px; margin: auto; }
+.offline-library header { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.offline-library h1 { font-size: 1.5rem; font-weight: 650; }
+.offline-library p { margin-block: 12px; }
+.offline-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; margin-block: 16px; }
+.offline-library label { display: grid; gap: 6px; min-width: 0; }
+.offline-library select, .offline-library textarea { border: 1px solid var(--color-border); background: var(--color-surface-2); color: var(--color-text); padding: 10px; border-radius: 8px; max-width: 100%; }
+.offline-layout { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 20px; }
+.offline-layout nav { display: flex; flex-direction: column; gap: 8px; }
+.offline-layout nav button { border: 1px solid var(--color-border); padding: 12px; border-radius: 8px; text-align: left; overflow-wrap: anywhere; }
+.offline-layout nav button[aria-current=page] { border-color: var(--color-accent); }
+.offline-layout small { display: block; margin-top: 4px; }
+.offline-detail { min-width: 0; }
+.offline-board { height: 70dvh; min-height: 400px; position: relative; }
+.offline-conflict { padding: 16px; border: 1px solid var(--color-border); border-radius: 12px; margin-block: 16px; }
+.offline-conflict > div:not(.offline-actions) { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.offline-conflict textarea { width: 100%; min-height: 220px; resize: vertical; }
+@media (max-width: 760px) { .offline-library { padding: 16px; } .offline-layout, .offline-conflict > div:not(.offline-actions) { grid-template-columns: minmax(0, 1fr); } .offline-layout nav { max-height: 200px; overflow: auto; } }
+
+.offline-about { margin-block: 12px; }
+.offline-about summary { cursor: pointer; color: var(--color-text-muted); }
+
+.offline-editor[inert] { opacity: .7; }

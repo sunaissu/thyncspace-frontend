@@ -1,8 +1,9 @@
 const CACHE_PREFIX = "thyncspace-pwa";
-const CACHE_VERSION = "v5";
+const CACHE_VERSION = "v6";
 const STATIC_CACHE = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   "/offline.html",
+  "/offline-library/",
   "/manifest.webmanifest",
   "/favicon.ico",
   "/theme-init.js",
@@ -15,7 +16,15 @@ const PRECACHE_URLS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(STATIC_CACHE).then((cache) => cache.addAll(PRECACHE_URLS)),
+    caches.open(STATIC_CACHE).then(async cache => {
+      await cache.addAll(PRECACHE_URLS);
+      // Prepare the public offline shell before activating a new cache version,
+      // so upgrades do not strand retained IndexedDB notes without their editor.
+      const shell = await cache.match("/offline-library/");
+      const html = await shell.text();
+      const assets = [...new Set([...html.matchAll(/(?:src|href)="(\/_next\/static\/[^"?#]+)"/g)].map(match => match[1]))];
+      await cache.addAll(assets);
+    }),
   );
   self.skipWaiting();
 });
@@ -53,7 +62,13 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(fetch(request).catch(() => caches.match("/offline.html")));
+    event.respondWith(fetch(request).then(response => {
+      if (url.pathname.replace(/\/$/, "") === "/offline-library" && response.ok && response.type === "basic") { const copy = response.clone(); event.waitUntil(caches.open(STATIC_CACHE).then(cache => cache.put("/offline-library/", copy))); }
+      return response;
+    }).catch(async () => {
+      if (url.pathname.replace(/\/$/, "") === "/offline-library") { const saved = await caches.match("/offline-library/"); if (saved) return saved; }
+      return caches.match("/offline.html");
+    }));
     return;
   }
 

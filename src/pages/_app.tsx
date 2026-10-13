@@ -84,6 +84,10 @@ export default function App({ Component, pageProps }: AppProps) {
     }
   };
 
+  // The offline page reads only explicitly retained device copies. It never
+  // treats those copies as a server-authenticated session.
+  if (router.pathname === "/offline-library") return <ThemeProvider><Component {...pageProps} /></ThemeProvider>;
+
   if (authError) {
     return (
       <ThemeProvider>
@@ -103,6 +107,7 @@ export default function App({ Component, pageProps }: AppProps) {
         >
           <h1>ThyncSpace cannot verify your session</h1>
           <p>{authError}</p>
+          <a href="/offline-library/">Open saved offline copies</a>
           <button className="btn-primary" type="button" onClick={fetchLoggedInUser}>
             Retry securely
           </button>

@@ -44,7 +44,7 @@ export default function Privacy({ loggedInUser }: { loggedInUser?: User | null }
     <header className="settings-header"><h1>Account privacy</h1><p>Manage your data as {loggedInUser?.username}.</p><Link href="/settings/">Back to settings</Link></header>
     <section className="settings-section" aria-labelledby="export-heading"><h2 id="export-heading">Download account data</h2>
       <p>Download your profile, owned documents and boards (including trash and retained history), owned attachments and their note references, notebook and tag metadata, preferences, reminders, schedules, device records and deletion request. Shared memberships are listed without copying someone else’s content.</p>
-      <p>Save pending edits first. Records reflect the time they are read. Credentials and session tokens are excluded. Private calculator state, study cards and drafts stored only on a device are not held by the server. This JSON Lines data file is for inspection, separate from Markdown import/export.</p>
+      <p>Save pending edits first. Records reflect the time they are read. Credentials and session tokens are excluded. Private calculator state, study cards, offline copies and drafts stored only on a device are not held by the server. This JSON Lines data file is for inspection, separate from Markdown import/export.</p>
       <button type="button" className="btn-primary" disabled={busy} onClick={() => void download()}>Download my data</button>
     </section>
     <section className="settings-section" aria-labelledby="deletion-heading"><h2 id="deletion-heading">Request account deletion</h2>
