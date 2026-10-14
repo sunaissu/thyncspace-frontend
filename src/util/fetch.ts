@@ -248,7 +248,7 @@ export interface CollaboratorDetails {
 export async function getCollaborationToken(noteId: string): Promise<string> {
   const response = await fetchData(
     `${env.SERVER_URL}/api/notes/${noteId}/collaboration-token`,
-    { method: "POST" },
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ protocol: 1 }) },
   );
   const body = await response.json();
   return body.token;

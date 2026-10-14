@@ -43,9 +43,9 @@
   "dependencies": {
     "@hocuspocus/provider": "4.5.0",
     "@phosphor-icons/react": "^2.1.10",
-    "@sunaissu/calculator": "file:vendor/sunaissu-calculator-1.1.0.tgz",
-    "@sunaissu/document-editor": "file:vendor/sunaissu-document-editor-1.1.0.tgz",
-    "@sunaissu/noteboard": "file:vendor/sunaissu-noteboard-2.0.1.tgz",
+    "@sunaissu/calculator": "file:vendor/sunaissu-calculator-1.1.0-rc.1.tgz",
+    "@sunaissu/document-editor": "file:vendor/sunaissu-document-editor-1.1.0-rc.1.tgz",
+    "@sunaissu/noteboard": "file:vendor/sunaissu-noteboard-3.0.0-rc.1.tgz",
     "@tesseract.js-data/eng": "^1.0.0",
     "next": "16.3.8",
     "pdfjs-dist": "^6.4.299",

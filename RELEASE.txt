@@ -1,0 +1,23 @@
+Release candidate 2026-10-14.1
+Repository: thyncspace/frontend
+Package version: 2.0.0
+Branch: release/2026-10-review
+Local annotated tag: rc/2026-10-14.1
+Status: prepared for review; not published or deployed.
+
+Changes
+Separate named owner-bound document/board cursors, same-account tab isolation, private calculations, recovery, notebooks, attachments/OCR, linked content, discussions, offline copies, archives and scoped Obsidian sync.
+
+Compatibility and rollout
+Use the matching backend and the three exact local RC tarballs in vendor. Build on Node 24. The configured public API and WebSocket origins must match the hosting CSP. Deploy backend first, invalidate obsolete collaboration credentials and then refresh clients.
+
+Checks
+npm run check; npm run lint; npm test; npm run build; npm run test:presence with an isolated loopback preview and disposable database.
+The dated workspace release manifest records completed local checks and exact commits.
+
+Collaboration protocol
+Token requests must declare protocol 1 and signed tokens must contain protocol 1. Missing/older protocol values are rejected. Existing clients must refresh; possession of a previous session-bound token alone does not permit reconnection. This is a compatibility gate, not a substitute for authentication and permissions.
+
+Limits and release gates
+Production OAuth, mail, AI providers, native Obsidian and hosting are not verified here. Billing remains gated by product decisions. Restore frontend/backend together if rollback is needed; retain new durable data and browser recovery copies.
+Fresh npm registry vulnerability checks remain pending permission to send dependency metadata. No production service or database was changed.

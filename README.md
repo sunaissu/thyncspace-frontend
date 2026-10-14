@@ -61,6 +61,8 @@ See the backend repository's deployment runbooks for coordinated releases.
 
 ## Reviewed package integration
 
+The release candidate pins calculator 1.1.0-rc.1, document-editor 1.1.0-rc.1 and Noteboard 3.0.0-rc.1. See `RELEASE.txt` for coordinated migration and release gates.
+
 The three editors/calculator packages are pinned to tarballs in `vendor/` so
 `npm ci` installs the reviewed code without an unpublished registry version.
 Sources: calculator `f4488ef`, document-editor `d4d6dc1`, Noteboard `03593d5`.
