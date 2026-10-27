@@ -1,7 +1,11 @@
 const CACHE_PREFIX = "thyncspace-pwa";
-const CACHE_VERSION = "v8";
+const CACHE_VERSION = "v9";
 const STATIC_CACHE = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
+  "/brand/sunaissu-light.svg",
+  "/brand/sunaissu-dark.svg",
+  "/brand/bg-light.svg",
+  "/brand/bg-dark.svg",
   "/offline.html",
   "/offline-library/",
   "/manifest.webmanifest",

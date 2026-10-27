@@ -5131,3 +5131,12 @@ body:has(.notes-page.is-maximized) .top-navbar { display: none; }
   }
   .secondary-note-pane { border-top: 0; border-left: 1px solid var(--color-border); }
 }
+
+.maker-credit { display:inline-flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; color:var(--color-text-muted); font-size:12px; font-weight:400; }
+.maker-credit img { flex:none; object-fit:contain; }
+.maker-credit .maker-wordmark { width:84px; height:27px; }
+.maker-credit .maker-personal { width:24px; height:12px; opacity:.65; }
+.maker-credit .maker-light { display:none; }
+.maker-credit .maker-dark { display:block; }
+html[data-theme="light"] .maker-credit .maker-light { display:block; }
+html[data-theme="light"] .maker-credit .maker-dark { display:none; }

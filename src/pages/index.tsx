@@ -1,6 +1,7 @@
 import Head from "next/head";
 import Image from "next/image";
 import Link from "next/link";
+import MakerCredit from "../components/makerCredit";
 import { User } from "../model/user";
 
 interface HomeProps {
@@ -290,10 +291,7 @@ export default function Home({ loggedInUser }: HomeProps) {
             fontWeight: 500,
           }}
         >
-          Personal Project by{" "}
-          <span style={{ color: "var(--color-text)", fontWeight: 800 }}>
-            Brett Josef C. Galvez
-          </span>
+          <MakerCredit />
         </p>
         <p
           style={{
