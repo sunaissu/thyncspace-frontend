@@ -1,5 +1,6 @@
 import {
   createElement,
+  validateElementMetadata,
   type NoteboardElement,
   type NoteboardViewport,
 } from "@sunaissu/noteboard";
@@ -103,6 +104,8 @@ const COMMON_ELEMENT_KEYS = [
   "isDeleted",
   "groupId",
   "locked",
+  "hidden",
+  "displayName",
   "dropShadow",
   "blendMode",
 ] as const;
@@ -131,6 +134,7 @@ const TYPE_ELEMENT_KEYS: Record<
     "points",
     "curveType",
     "routing",
+    "manualRoute",
     "startArrowhead",
     "endArrowhead",
     "label",
@@ -143,6 +147,7 @@ const TYPE_ELEMENT_KEYS: Record<
     "points",
     "curveType",
     "routing",
+    "manualRoute",
     "startArrowhead",
     "endArrowhead",
     "label",
@@ -154,7 +159,7 @@ const TYPE_ELEMENT_KEYS: Record<
   text: [...SHAPE_TEXT_KEYS, "baseline"],
   draw: ["points"],
   pen: ["points", "highlighter", "tension"],
-  image: ["dataUrl"],
+  image: ["dataUrl", "assetId", "mask"],
   frame: ["name", "frameColor", "showLabel", "childIds"],
   star: [...SHAPE_TEXT_KEYS, "sides", "isStar", "innerRadius"],
   "sticky-note": [...SHAPE_TEXT_KEYS, "noteColor"],
@@ -189,7 +194,8 @@ const isSafeBinding = (value: unknown) =>
   value === null ||
   (isRecord(value) &&
     isSafeElementId(value.elementId) &&
-    isSafePoint(value.fixedPoint));
+    isSafePoint(value.fixedPoint) &&
+    (value.portId === undefined || (typeof value.portId === "string" && value.portId.length <= MAX_ELEMENT_ID_LENGTH)));
 
 const isOptionalSafeNumber = (value: unknown) =>
   value === undefined || isSafeCoordinate(value);
@@ -278,6 +284,7 @@ const copyElementOverrides = (
       overrides[key] = {
         elementId: binding.elementId,
         fixedPoint: { x: fixedPoint.x, y: fixedPoint.y },
+        ...(binding.portId === undefined ? {} : { portId: binding.portId }),
       };
     }
   }
@@ -296,6 +303,34 @@ const copyElementOverrides = (
     overrides.childIds = [...value.childIds];
   }
 
+  if (isRecord(value.link)) {
+    overrides.link = { kind: value.link.kind, target: value.link.target };
+  }
+  if (Array.isArray(value.ports)) {
+    overrides.ports = value.ports.map(port => ({
+      id: port.id, name: port.name,
+      point: { x: port.point.x, y: port.point.y },
+      accepts: [...port.accepts],
+    }));
+  }
+  if (isRecord(value.documentCard)) {
+    const card = value.documentCard;
+    overrides.documentCard = {
+      documentId: card.documentId, revision: card.revision, title: card.title, fallback: card.fallback,
+      ...(card.stale === undefined ? {} : { stale: card.stale }),
+    };
+  }
+  if (isRecord(value.calculation)) {
+    const calculation = value.calculation;
+    overrides.calculation = {
+      version: calculation.version, expression: calculation.expression, result: calculation.result,
+      variables: { ...(calculation.variables as Record<string, number>) },
+    };
+  }
+  if (type === "image" && isRecord(value.crop)) {
+    overrides.crop = { x: value.crop.x, y: value.crop.y, width: value.crop.width, height: value.crop.height };
+  }
+
   return overrides as Partial<NoteboardElement>;
 };
 
@@ -303,6 +338,13 @@ const normalizeNoteboardElement = (
   value: unknown,
 ): NoteboardElement | null => {
   if (!isRecord(value)) return null;
+  try {
+    validateElementMetadata(value);
+  } catch {
+    return null;
+  }
+  if (isRecord(value.documentCard) && !isOptionalBoolean(value.documentCard.stale)) return null;
+  if (isRecord(value.calculation) && !isRecord(value.calculation.variables)) return null;
   if (
     !isSafeElementId(value.id) ||
     typeof value.type !== "string" ||
@@ -323,6 +365,8 @@ const normalizeNoteboardElement = (
     !isOptionalElementSeed(value.seed) ||
     !isOptionalBoolean(value.isDeleted) ||
     !isOptionalBoolean(value.locked) ||
+    !isOptionalBoolean(value.hidden) ||
+    !isOptionalString(value.displayName, MAX_ELEMENT_ID_LENGTH) ||
     !isOptionalString(value.strokeColor, MAX_STYLE_VALUE_LENGTH) ||
     !isOptionalString(value.backgroundColor, MAX_STYLE_VALUE_LENGTH) ||
     !isOptionalEnum(value.fillStyle, [
@@ -409,6 +453,7 @@ const normalizeNoteboardElement = (
     (type === "line" || type === "arrow") &&
     (!isOptionalEnum(value.curveType, ["straight", "curve"]) ||
       !isOptionalEnum(value.routing, ["straight", "curve", "orthogonal"]) ||
+      !isOptionalBoolean(value.manualRoute) ||
       !isOptionalArrowhead(value.startArrowhead) ||
       !isOptionalArrowhead(value.endArrowhead) ||
       !isOptionalString(value.label, MAX_ELEMENT_TEXT_LENGTH) ||
@@ -434,7 +479,7 @@ const normalizeNoteboardElement = (
   }
 
   if (
-    type === "image" &&
+    type === "image" && !(value.assetId && value.dataUrl === "") &&
     (typeof value.dataUrl !== "string" ||
       value.dataUrl.length > MAX_IMAGE_DATA_URL_LENGTH ||
       !/^data:image\/(?:png|jpeg|gif|webp);base64,[A-Za-z0-9+/]+={0,2}$/i.test(value.dataUrl) ||
