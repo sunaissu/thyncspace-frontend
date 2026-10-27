@@ -66,23 +66,43 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-accent) 42%, transparent);
-  border-radius: 999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-accent) 72%, transparent);
+/* Packages own their scrollbars; these rules apply only to host UI. */
+html[data-scrollbar],
+html[data-scrollbar] :where(*):not(:where([data-calculator-scrollbar], [data-calculator-scrollbar] *, [data-document-editor-scrollbar], [data-document-editor-scrollbar] *, [data-noteboard-scrollbar], [data-noteboard-scrollbar] *)) {
+  scrollbar-width: var(--app-scrollbar-width, auto);
+  scrollbar-color: var(--app-scrollbar-color, auto);
 }
 
-/* ── Solid card utility ── */
+@supports not (scrollbar-color: red blue) {
+  html[data-scrollbar="custom"],
+  html[data-scrollbar="custom"] :where(*):not(:where([data-calculator-scrollbar], [data-calculator-scrollbar] *, [data-document-editor-scrollbar], [data-document-editor-scrollbar] *, [data-noteboard-scrollbar], [data-noteboard-scrollbar] *)) {
+    scrollbar-width: auto;
+  }
+  html[data-scrollbar="custom"]::-webkit-scrollbar,
+  html[data-scrollbar="custom"] :where(*):not(:where([data-calculator-scrollbar], [data-calculator-scrollbar] *, [data-document-editor-scrollbar], [data-document-editor-scrollbar] *, [data-noteboard-scrollbar], [data-noteboard-scrollbar] *))::-webkit-scrollbar {
+    width: var(--app-scrollbar-size, 12px);
+    height: var(--app-scrollbar-size, 12px);
+  }
+  html[data-scrollbar="custom"]::-webkit-scrollbar-thumb,
+  html[data-scrollbar="custom"] :where(*):not(:where([data-calculator-scrollbar], [data-calculator-scrollbar] *, [data-document-editor-scrollbar], [data-document-editor-scrollbar] *, [data-noteboard-scrollbar], [data-noteboard-scrollbar] *))::-webkit-scrollbar-thumb {
+    background: var(--app-scrollbar-thumb, currentColor);
+    border-radius: 999px;
+  }
+  html[data-scrollbar="custom"]::-webkit-scrollbar-track,
+  html[data-scrollbar="custom"] :where(*):not(:where([data-calculator-scrollbar], [data-calculator-scrollbar] *, [data-document-editor-scrollbar], [data-document-editor-scrollbar] *, [data-noteboard-scrollbar], [data-noteboard-scrollbar] *))::-webkit-scrollbar-track {
+    background: var(--app-scrollbar-track, transparent);
+  }
+}
+
+@supports not (scrollbar-width: none) {
+  html[data-scrollbar="hidden"]::-webkit-scrollbar,
+  html[data-scrollbar="hidden"] :where(*):not(:where([data-calculator-scrollbar], [data-calculator-scrollbar] *, [data-document-editor-scrollbar], [data-document-editor-scrollbar] *, [data-noteboard-scrollbar], [data-noteboard-scrollbar] *))::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+}
+
 .glass {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -1972,6 +1992,59 @@ textarea:focus-visible {
   padding: 0.9rem;
 }
 
+.private-calculator-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.private-calculator-panel > .private-calculator-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+
+.private-calculator-title {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.private-calculator-title > svg { color: var(--color-text-muted); flex-shrink: 0; }
+.private-calculator-title strong { font-weight: 600; }
+.calculator-privacy-badge {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+.private-calculator-panel > .private-calculator-header > button {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+}
+.private-calculator-body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.private-calculator-panel .sunaissu-calculator-heading { display: none; }
+.private-calculator-panel .sunaissu-calculator-panel .calculator-mode-switch { margin-top: 0; }
+
 .tool-panel-heading {
   display: flex;
   align-items: center;
@@ -2499,10 +2572,19 @@ textarea:focus-visible {
     display: none;
   }
 
-  .whiteboard-calculator-panel {
-    width: min(300px, 45vw);
-    flex-basis: min(300px, 45vw);
+  .whiteboard-workspace { position: relative; }
+
+  .whiteboard-calculator-panel.private-calculator-panel {
+    position: absolute;
+    inset: 0 0 0 auto;
+    z-index: 20;
+    width: min(320px, 100%);
+    border-left: 1px solid var(--color-border);
+    border-radius: 9px;
+    box-shadow: -8px 0 24px #0002;
   }
+
+  .whiteboard-workspace:has(.whiteboard-calculator-panel) .whiteboard-editor-canvas { border-radius: 9px; }
 }
 
 /* Empty workspace */
@@ -3765,6 +3847,34 @@ html[data-accent="rose"] {
   white-space: nowrap;
 }
 
+.appearance-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  align-items: end;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.appearance-fields select,
+.appearance-fields input[type="color"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem;
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  color: var(--color-text);
+  background: var(--color-surface-2);
+  font: inherit;
+}
+
+.appearance-color input:disabled { opacity: 0.4; }
+.appearance-checkbox { display: flex; align-items: center; gap: 0.6rem; min-height: 44px; font-size: 0.82rem; }
+.appearance-checkbox input { width: 18px; height: 18px; accent-color: var(--color-accent); }
+.appearance-scrollbar-preview { max-height: 110px; margin-top: 1rem; padding: 0.5rem 1rem; overflow: auto; border: 1px solid var(--color-border); border-radius: 7px; background: var(--color-surface-2); font-size: 0.8rem; }
+.appearance-scrollbar-preview p { margin: 0.5rem 0; }
+.appearance-fields select:focus-visible,
+.appearance-scrollbar-preview:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
 .theme-option-grid {
   margin-top: 1.1rem;
   display: grid;
@@ -4202,11 +4312,6 @@ html[data-theme="light"] .modal-backdrop {
     order: 2;
     overflow-x: auto;
     overscroll-behavior-inline: contain;
-    scrollbar-width: none;
-  }
-
-  .formatting-tools::-webkit-scrollbar {
-    display: none;
   }
 
   .formatting-tools button,

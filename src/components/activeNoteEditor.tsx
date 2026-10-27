@@ -10,7 +10,7 @@ import React, {
   useState,
 } from "react";
 import * as Y from "yjs";
-import { CalculatorIcon, CloudSlashIcon, SpinnerBallIcon } from "@phosphor-icons/react";
+import { CalculatorIcon, CloudSlashIcon, LockSimpleIcon, SpinnerBallIcon, TextAaIcon, XIcon } from "@phosphor-icons/react";
 import {
   Noteboard,
   NoteboardRef,
@@ -32,10 +32,7 @@ import {
 } from "../model/note";
 import { User } from "../model/user";
 import NoteContext from "../context/noteContext";
-import {
-  ACCENT_BRAND_COLORS,
-  useTheme,
-} from "../context/themeContext";
+import { useTheme } from "../context/themeContext";
 import { useNoteCollaboration } from "../hooks/useNoteCollaboration";
 import { usePrivateNoteAutosave } from "../hooks/usePrivateNoteAutosave";
 
@@ -48,6 +45,23 @@ interface ActiveNoteEditorProps {
 }
 
 const COLLABORATIVE_TITLE_KEY = "note-title";
+
+function CalculatorPanel({ className, onClose, children }: {
+  className: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return <aside className={`${className} private-calculator-panel`} aria-label="Calculator">
+    <header className="private-calculator-header">
+      <div className="private-calculator-title"><CalculatorIcon size={17} aria-hidden="true" /><strong>Calculator</strong></div>
+      <span className="calculator-privacy-badge" title="Only you can see this calculator">
+        <LockSimpleIcon size={12} aria-hidden="true" />Personal
+      </span>
+      <button type="button" className="icon-button" aria-label="Close calculator" title="Close calculator" onClick={onClose}><XIcon size={16} /></button>
+    </header>
+    <div className="private-calculator-body">{children}</div>
+  </aside>;
+}
 
 const downloadDraft = (value: string, name: string) => {
   const url = URL.createObjectURL(new Blob([value], { type: "text/plain;charset=utf-8" }));
@@ -123,6 +137,12 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const content = documentBinding.value;
   const [admissionError, setAdmissionError] = useState("");
   const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const calculatorToggle = useRef<HTMLButtonElement>(null);
+  const closeCalculator = () => {
+    setCalculatorOpen(false);
+    calculatorToggle.current?.focus();
+  };
+  const [formattingOpen, setFormattingOpen] = useState(false);
   const [localBindingsReady, setLocalBindingsReady] = useState(false);
   const { notes, setNotes } = useContext(NoteContext);
   useEffect(() => {
@@ -133,13 +153,10 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   const {
     preference,
     resolvedTheme,
-    accentTheme,
+    packageBrandColors,
+    packageScrollbar,
     setPreference,
   } = useTheme();
-  const noteboardBrandColors = useMemo(
-    () => ACCENT_BRAND_COLORS[accentTheme][resolvedTheme],
-    [accentTheme, resolvedTheme],
-  );
 
   const boardRef = useRef<NoteboardRef>(null);
   const documentEditorRef = useRef<DocumentEditorHandle>(null);
@@ -539,8 +556,10 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
                   : `${collaboration.peers.length || 1} active · ${collaboration.status}`}
             </small>
             <button
+              ref={calculatorToggle}
               type="button"
               className={calculatorOpen ? "tool-toggle is-active" : "tool-toggle"}
+              aria-pressed={calculatorOpen}
               onClick={() => setCalculatorOpen((open) => !open)}
               title="Calculator"
             >
@@ -568,14 +587,14 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
               onThemeChange={setPreference}
               readOnly={readOnly}
               theme={preference}
-              brandColors={noteboardBrandColors}
+              brandColors={packageBrandColors}
+              scrollbar={packageScrollbar}
             />
           </CollaborationPresence>
           {calculatorOpen && (
-            <aside className="whiteboard-calculator-panel">
-              <p>Private calculator · only visible to you</p>
-              <Calculator key={`${user?._id}:${note._id}`} theme={resolvedTheme} brandColors={noteboardBrandColors} />
-            </aside>
+            <CalculatorPanel className="whiteboard-calculator-panel" onClose={closeCalculator}>
+              <Calculator key={`${user?._id}:${note._id}`} theme={resolvedTheme} brandColors={packageBrandColors} scrollbar={packageScrollbar} />
+            </CalculatorPanel>
           )}
         </div>
       </div>
@@ -592,7 +611,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       <WikiCompletion notes={notes} readOnly={Boolean(readOnly)} editorRef={documentEditorRef}>
       <DocumentEditor
         ref={documentEditorRef}
-        className={`thyncspace-document-editor ${editorPreferences.preferences.lineWidth === "reading" ? "editor-reading-width" : ""}`}
+        className={`thyncspace-document-editor ${formattingOpen ? "has-formatting" : "formatting-collapsed"} ${editorPreferences.preferences.lineWidth === "reading" ? "editor-reading-width" : ""}`}
         defaultMode={editorPreferences.preferences.mode}
         style={{ "--preferred-editor-font-size": `${editorPreferences.preferences.fontSize}px` } as React.CSSProperties}
         value={content}
@@ -600,19 +619,29 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
         history={documentBinding.history}
         readOnly={readOnly}
         theme={resolvedTheme}
-        brandColors={noteboardBrandColors}
-        renderToolbarEnd={() => (
-          <button type="button" className="tool-toggle" aria-pressed={calculatorOpen} onClick={() => setCalculatorOpen(open => !open)}>
-            <CalculatorIcon size={17} /> Calculator
-          </button>
+        brandColors={packageBrandColors}
+        scrollbar={packageScrollbar}
+        renderToolbarEnd={({ mode }) => (
+          <>
+            {!readOnly && mode !== "preview" && <button
+              type="button"
+              className="tool-toggle formatting-toggle"
+              aria-label={formattingOpen ? "Hide formatting tools" : "Show formatting tools"}
+              aria-expanded={formattingOpen}
+              onPointerDown={event => event.preventDefault()}
+              onClick={() => setFormattingOpen(open => !open)}
+            ><TextAaIcon size={17} /><span>Format</span></button>}
+            <button ref={calculatorToggle} type="button" className="tool-toggle calculator-toggle" aria-label="Calculator" title="Calculator" aria-pressed={calculatorOpen} onClick={() => setCalculatorOpen(open => !open)}>
+              <CalculatorIcon size={17} /><span>Calculator</span>
+            </button>
+          </>
         )}
       />
       </WikiCompletion>
       </CollaborationPresence>
-      {calculatorOpen && <aside className="document-tool-panel" aria-label="Calculator">
-        <p>Private calculator · only visible to you</p>
-        <Calculator key={`${user?._id}:${note._id}`} theme={resolvedTheme} brandColors={noteboardBrandColors} />
-      </aside>}
+      {calculatorOpen && <CalculatorPanel className="document-tool-panel" onClose={closeCalculator}>
+        <Calculator key={`${user?._id}:${note._id}`} theme={resolvedTheme} brandColors={packageBrandColors} scrollbar={packageScrollbar} />
+      </CalculatorPanel>}
     </div>
   );
 };

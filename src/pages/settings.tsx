@@ -19,6 +19,7 @@ import {
 } from "../context/themeContext";
 import type { User } from "../model/user";
 import * as NotesApi from "../util/fetch";
+import type { ColorScheme, ScrollbarPreference } from "../util/appearance";
 
 const themeOptions: Array<{
   value: ThemePreference;
@@ -90,6 +91,13 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
     accentTheme,
     setPreference,
     setAccentTheme,
+    colorScheme,
+    setColorScheme,
+    customBrandColors,
+    setCustomBrandColors,
+    scrollbarPreference,
+    setScrollbarPreference,
+    appearanceStorageError,
   } = useTheme();
   const editor = useEditorPreferences(loggedInUser?._id);
   const [username, setUsername] = useState(loggedInUser?.username ?? "");
@@ -177,15 +185,39 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
         <section className="settings-section" aria-labelledby="accent-heading">
           <div className="settings-section-heading">
             <div>
-              <h2 id="accent-heading">Accent theme</h2>
+              <h2 id="accent-heading">Color scheme</h2>
               <p>
-                Blue is the default. Choose the color that feels right on this
-                device.
+                Choose a preset or your own colors. Default keeps your existing accent theme.
               </p>
             </div>
-            <span className="resolved-theme-label">{accentTheme}</span>
+            <span className="resolved-theme-label">{colorScheme === "default" ? accentTheme : colorScheme}</span>
           </div>
 
+          <div className="appearance-fields">
+            <label className="settings-field" htmlFor="settings-color-scheme">
+              <span className="settings-field-label">Color scheme</span>
+              <select id="settings-color-scheme" value={colorScheme} onChange={event => setColorScheme(event.target.value as ColorScheme)}>
+                <option value="default">Default</option>
+                <option value="ocean">Ocean</option>
+                <option value="forest">Forest</option>
+                <option value="plum">Plum</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            {colorScheme === "custom" && (
+              <>
+                <label className="settings-field appearance-color" htmlFor="settings-primary-color">
+                  <span className="settings-field-label">Primary color</span>
+                  <input id="settings-primary-color" type="color" value={customBrandColors.primary} onChange={event => setCustomBrandColors({ primary: event.target.value })} />
+                </label>
+                <label className="settings-field appearance-color" htmlFor="settings-secondary-color">
+                  <span className="settings-field-label">Secondary color</span>
+                  <input id="settings-secondary-color" type="color" value={customBrandColors.secondary} onChange={event => setCustomBrandColors({ secondary: event.target.value })} />
+                </label>
+              </>
+            )}
+          </div>
+          {colorScheme === "default" && (
           <div
             className="accent-option-grid"
             role="group"
@@ -218,6 +250,56 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
               );
             })}
           </div>
+          )}
+        </section>
+
+        <section className="settings-section" aria-labelledby="scrollbar-heading">
+          <div className="settings-section-heading">
+            <div>
+              <h2 id="scrollbar-heading">Scrollbars</h2>
+              <p>Use browser colors, choose your own, or hide the bars while keeping scrolling enabled.</p>
+            </div>
+          </div>
+          <div className="appearance-fields">
+            <label className="settings-field" htmlFor="settings-scrollbar-mode">
+              <span className="settings-field-label">Scrollbar appearance</span>
+              <select id="settings-scrollbar-mode" value={scrollbarPreference.mode} onChange={event => setScrollbarPreference({ mode: event.target.value as ScrollbarPreference["mode"] })}>
+                <option value="native">Native</option>
+                <option value="custom">Custom colors</option>
+                <option value="hidden">Hidden</option>
+              </select>
+            </label>
+            {scrollbarPreference.mode === "custom" && (
+              <>
+                <label className="settings-field appearance-color" htmlFor="settings-scrollbar-thumb">
+                  <span className="settings-field-label">Thumb color</span>
+                  <input id="settings-scrollbar-thumb" type="color" value={scrollbarPreference.thumbColor} onChange={event => setScrollbarPreference({ thumbColor: event.target.value })} />
+                </label>
+                <label className="settings-field appearance-color" htmlFor="settings-scrollbar-track">
+                  <span className="settings-field-label">Track color</span>
+                  <input id="settings-scrollbar-track" type="color" value={scrollbarPreference.trackColor} disabled={scrollbarPreference.transparentTrack} onChange={event => setScrollbarPreference({ trackColor: event.target.value })} />
+                </label>
+                <label className="appearance-checkbox">
+                  <input type="checkbox" checked={scrollbarPreference.transparentTrack} onChange={event => setScrollbarPreference({ transparentTrack: event.target.checked })} />
+                  Transparent track
+                </label>
+              </>
+            )}
+            {scrollbarPreference.mode !== "hidden" && (
+              <label className="appearance-checkbox">
+                <input type="checkbox" checked={scrollbarPreference.thin} onChange={event => setScrollbarPreference({ thin: event.target.checked })} />
+                Thin scrollbars
+              </label>
+            )}
+          </div>
+          <div className="appearance-scrollbar-preview" role="region" aria-label="Scrollbar preview" tabIndex={0}>
+            <p>Scroll here to try your settings.</p>
+            <p>Your notes keep their content and formatting.</p>
+            <p>These appearance settings apply on this device.</p>
+            <p>Use your mouse, touchpad, or arrow keys to scroll.</p>
+            <p>Hidden scrollbars still allow scrolling.</p>
+          </div>
+          {appearanceStorageError && <p role="status">{appearanceStorageError}</p>}
         </section>
 
         <section className="settings-section" aria-labelledby="profile-heading">
