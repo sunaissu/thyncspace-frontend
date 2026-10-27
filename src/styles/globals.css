@@ -4471,12 +4471,20 @@ html[data-theme="light"] .modal-backdrop {
 .document-presence-surface > .thyncspace-document-editor { flex: 1; min-height: 0; }
 .collaboration-people { display: flex; flex-wrap: wrap; gap: 6px; padding: 6px 10px; background: var(--color-surface); font-size: 11px; order: -1; }
 .whiteboard-editor-canvas > .collaboration-people { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 3; pointer-events: none; background: transparent; padding: 0; }
-.collaboration-people > span { display: inline-flex; gap: 5px; align-items: center; border: 1px solid; border-radius: 12px; background: var(--color-surface); padding: 3px 7px; }
+.collaboration-people > span, .collaboration-people > button { display: inline-flex; gap: 5px; align-items: center; border: 1px solid; border-radius: 12px; background: var(--color-surface); color: inherit; padding: 3px 7px; font: inherit; }
+.collaboration-people > button { cursor: pointer; }
+.collaboration-people > button:hover { background: var(--color-surface-2); }
+.collaboration-people > button:focus-visible { outline: 2px solid var(--color-accent, #2563eb); outline-offset: 2px; }
+.presence-editing { opacity: .8; font-size: 10px; }
 .collaboration-people i { width: 7px; height: 7px; border-radius: 50%; }
 .remote-cursor-layer { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 4; }
 .remote-cursor { position: absolute; pointer-events: none; display: flex; align-items: flex-start; gap: 2px; }
 .remote-cursor > span { color: white; border: 1px solid white; border-radius: 4px; padding: 3px 6px; font: 600 11px/1.4 sans-serif; white-space: nowrap; box-shadow: 0 1px 4px #0004; margin-top: 15px; max-width: 230px; overflow: hidden; text-overflow: ellipsis; }
 .remote-cursor small { opacity: .85; }
+.remote-text-caret { position: absolute; width: 0; border-left: 2px solid currentColor; pointer-events: none; }
+.remote-text-caret::before { content: ""; position: absolute; width: 6px; height: 3px; left: -4px; top: -1px; border-radius: 2px; background: currentColor; }
+.remote-text-caret > span { position: absolute; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 2px 5px; border: 1px solid #ffffffb3; border-radius: 4px; color: white; box-shadow: 0 1px 4px #0003; font: 600 11px/1.4 sans-serif; }
+@media print { .collaboration-people, .remote-cursor-layer { display: none !important; } }
 
 .version-text-diff { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 420px; overflow: auto; padding: 12px; border: 1px solid var(--color-border); border-radius: 8px; }
 .version-text-diff del { background: #fee2e2; color: #7f1d1d; }

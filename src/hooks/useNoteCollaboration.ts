@@ -1,4 +1,5 @@
-import { parsePresence, type PresencePosition } from "../util/presence";
+import { parsePresence, parseTextCaret, type PresencePosition, type TextCaretPosition } from "../util/presence";
+import { reconcileCollaborationPeers, type CollaborationPeer, type PeerAwarenessState } from "../util/collaborationPeers";
 import { HocuspocusProvider, WebSocketStatus } from "@hocuspocus/provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as Y from "yjs";
@@ -16,13 +17,7 @@ export type CollaborationStatus =
   | "local"
   | "synced";
 
-export interface CollaborationPeer {
-  color?: string;
-  id: string;
-  sessionId: number;
-  cursor?: PresencePosition | null;
-  name: string;
-}
+export type { CollaborationPeer } from "../util/collaborationPeers";
 
 const COLORS = ["#2563eb", "#0891b2", "#16a34a", "#dc2626", "#ca8a04"];
 
@@ -92,6 +87,8 @@ export function useNoteCollaboration(
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const cursorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingCursor = useRef<PresencePosition | null>(null);
+  const caretTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingCaret = useRef<TextCaretPosition | null>(null);
   const publishCursor = useCallback((position: PresencePosition | null) => {
     const previous = pendingCursor.current;
     pendingCursor.current = parsePresence(position);
@@ -99,7 +96,36 @@ export function useNoteCollaboration(
     if (cursorTimer.current !== null) return;
     cursorTimer.current = setTimeout(() => { cursorTimer.current = null; providerRef.current?.setAwarenessField("cursor", pendingCursor.current); }, 40);
   }, []);
-  useEffect(() => () => { if (cursorTimer.current !== null) clearTimeout(cursorTimer.current); }, []);
+  const publishCaret = useCallback((position: TextCaretPosition | null) => {
+    const previous = pendingCaret.current;
+    const next = parseTextCaret(position);
+    pendingCaret.current = next;
+    if (!next) {
+      if (caretTimer.current !== null) clearTimeout(caretTimer.current);
+      caretTimer.current = null;
+      if (previous) providerRef.current?.setAwarenessField("caret", null);
+      return;
+    }
+    if (caretTimer.current !== null) return;
+    caretTimer.current = setTimeout(() => {
+      caretTimer.current = null;
+      providerRef.current?.setAwarenessField("caret", pendingCaret.current);
+    }, 40);
+  }, []);
+  const clearPresence = useCallback((provider: HocuspocusProvider | null) => {
+    if (cursorTimer.current !== null) clearTimeout(cursorTimer.current);
+    if (caretTimer.current !== null) clearTimeout(caretTimer.current);
+    cursorTimer.current = null;
+    caretTimer.current = null;
+    pendingCursor.current = null;
+    pendingCaret.current = null;
+    provider?.setAwarenessField("cursor", null);
+    provider?.setAwarenessField("caret", null);
+  }, []);
+  useEffect(() => () => {
+    if (cursorTimer.current !== null) clearTimeout(cursorTimer.current);
+    if (caretTimer.current !== null) clearTimeout(caretTimer.current);
+  }, []);
   const handleStateless = useCallback((data: { payload: string }) => {
     receiveReceipt(data);
     if (data.payload.length > 512) return;
@@ -149,6 +175,12 @@ export function useNoteCollaboration(
     let active = true;
     let synchronized = false;
     let failed = false;
+    let awarenessFrame: number | null = null;
+    let awarenessStates: PeerAwarenessState[] = [];
+    const updatePeers = () => {
+      awarenessFrame = null;
+      if (active) setPeers(previous => reconcileCollaborationPeers(previous, awarenessStates, document.clientID));
+    };
     setReady(hasSynced.current);
     setStatus("connecting");
     setErrorMessage("");
@@ -175,10 +207,8 @@ export function useNoteCollaboration(
           if (!hasSynced.current) setReady(false);
           setStatus("connecting");
         } else {
-          // Do not leave an apparently editable note on screen while updates
-          // are only queued in memory. Leaving during that state would destroy
-          // the provider and could discard those queued document/canvas edits.
           if (!hasSynced.current) setReady(false);
+          clearPresence(providerRef.current);
           setStatus("disconnected");
         }
       },
@@ -196,6 +226,7 @@ export function useNoteCollaboration(
       onAuthenticationFailed: ({ reason }) => {
         if (!active) return;
         failed = true;
+        clearPresence(providerRef.current);
         window.clearTimeout(connectionTimeout);
         setStatus("error");
         setErrorMessage(
@@ -209,12 +240,8 @@ export function useNoteCollaboration(
       },
       onAwarenessChange: ({ states }) => {
         if (!active) return;
-        const next = new Map<string, CollaborationPeer>();
-        states.forEach((state) => {
-          const awarenessUser = state.user as CollaborationPeer | undefined;
-          if (awarenessUser?.id && typeof awarenessUser.name === "string" && Number.isSafeInteger(state.clientId)) next.set(String(state.clientId), { id: awarenessUser.id, name: awarenessUser.name.slice(0, 80), color: typeof awarenessUser.color === "string" && /^#[0-9a-f]{6}$/i.test(awarenessUser.color) ? awarenessUser.color : "#2563eb", sessionId: state.clientId, cursor: parsePresence(state.cursor) });
-        });
-        setPeers(Array.from(next.values()));
+        awarenessStates = states;
+        if (awarenessFrame === null) awarenessFrame = requestAnimationFrame(updatePeers);
       },
     });
 
@@ -236,28 +263,24 @@ export function useNoteCollaboration(
 
     return () => {
       active = false;
+      if (awarenessFrame !== null) cancelAnimationFrame(awarenessFrame);
       window.clearTimeout(connectionTimeout);
+      clearPresence(provider);
       provider.flushPendingUpdates();
-      // The provider counts its initial sync handshake as an unsynced change.
-      // Before the first successful sync the editor was never writable, so
-      // retaining that provider cannot preserve a user edit and only leaks a
-      // reconnect loop after authentication or connection failures.
+      // Do not retain a failed provider waiting for its initial sync handshake.
       if (!synchronized) {
         finalizeProvider();
         return;
       }
 
-      // Keep a retired note's provider connected until the server has
-      // acknowledged its queued updates. It then tears itself and the Y.Doc
-      // down without keeping the editor component mounted.
+      // Retiring edits need a durable browser copy before this Y.Doc is released.
       waitForSync = ({ number }) => {
         if (number === 0) void persistLiveDraft().then(stored => { if (stored) finalizeProvider(); });
       };
       provider.on("unsyncedChanges", waitForSync);
-      // Once a durable browser copy exists, the retired provider can stop.
       void persistLiveDraft().then(stored => { if (stored) finalizeProvider(); });
     };
-  }, [connectionAttempt, document, enabled, lifecycle, noteId, userId, handleStateless, liveDraftReady, persistLiveDraft]);
+  }, [connectionAttempt, document, enabled, lifecycle, noteId, userId, handleStateless, liveDraftReady, persistLiveDraft, clearPresence]);
 
   useEffect(() => {
     lifecycle.retired.clear();
@@ -282,6 +305,7 @@ export function useNoteCollaboration(
     permission,
     clientId: document.clientID,
     publishCursor,
+    publishCaret,
     durability,
     draftError: liveDraft.error,
     errorMessage,
