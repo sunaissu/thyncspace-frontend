@@ -11,12 +11,19 @@ export default function Home({ loggedInUser }: HomeProps) {
   return (
     <div>
       <Head>
-        <title>ThyncSpace | Think. Create. Save.</title>
+        <title>ThyncSpace | Document Notes, Whiteboards and Calculations</title>
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="ThyncSpace | Document Notes, Whiteboards and Calculations" />
+        <meta property="og:description" content="Write document notes, draw editable diagrams, and collaborate in a technical workspace." />
+        <meta name="twitter:card" content="summary" />
+        {process.env.NEXT_PUBLIC_SITE_URL && <link rel="canonical" href={`${process.env.NEXT_PUBLIC_SITE_URL}/`} />}
+        {process.env.NEXT_PUBLIC_SITE_URL && <meta property="og:url" content={`${process.env.NEXT_PUBLIC_SITE_URL}/`} />}
         <meta
           name="description"
-          content="A modern notes application to capture your thoughts, ideas, and everything in between."
+          content="Write document notes, draw editable diagrams, and work with calculations in a collaborative technical workspace."
         />
       </Head>
+      <nav aria-label="Product documentation" style={{ padding: '1rem', textAlign: 'center' }}><a href="/guide.html">ThyncSpace features, collaboration and offline guide</a></nav>
       <section
         style={{
           position: "relative",

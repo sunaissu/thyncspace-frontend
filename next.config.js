@@ -3,6 +3,13 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { version: appVersion } = require("./package.json");
 const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+if (siteUrl) {
+  const parsed = new URL(siteUrl);
+  if (parsed.protocol !== 'https:' || parsed.origin !== siteUrl || parsed.username || parsed.password) {
+    throw new Error('NEXT_PUBLIC_SITE_URL must be an HTTPS origin without a path or trailing slash.');
+  }
+}
 const yjsEsmEntry = path.join(
   path.dirname(require.resolve("yjs/package.json")),
   "dist",

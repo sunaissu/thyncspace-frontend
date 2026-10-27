@@ -1,0 +1,42 @@
+{
+  "name": "ThyncSpace",
+  "title": "ThyncSpace: document notes, whiteboards and calculations",
+  "description": "A technical workspace for document notes, editable diagrams, calculations and permission-based collaboration.",
+  "category": "ProductivityApplication",
+  "output": "out",
+  "originEnv": "NEXT_PUBLIC_SITE_URL",
+  "mainMetadata": false,
+  "sections": [
+    {
+      "heading": "What is ThyncSpace for?",
+      "paragraphs": [
+        "Combine writing, whiteboards and calculations in a technical workspace. Documentation notes can contain text and diagram sections with an outline and reading view."
+      ]
+    },
+    {
+      "heading": "Can people work together?",
+      "paragraphs": [
+        "Sharing and real-time collaboration use the configured backend and the note permissions. The frontend alone is not a hosted collaboration service."
+      ]
+    },
+    {
+      "heading": "Can I export my work?",
+      "paragraphs": [
+        "Documentation notes support Word and PDF snapshot exports. Diagrams become images in these exports; exports are not a replacement for the editable source workspace."
+      ]
+    },
+    {
+      "heading": "Does it work offline?",
+      "paragraphs": [
+        "The installable web app can retain explicitly selected offline copies. Offline copies do not grant server access or imply that unsynced changes have reached the server."
+      ]
+    },
+    {
+      "heading": "Is there a native store app?",
+      "paragraphs": [
+        "This repository provides a web application and PWA. A native Google Play or Apple App Store release is not established by this source checkout."
+      ]
+    }
+  ],
+  "links": []
+}

@@ -91,6 +91,10 @@ export default function App({ Component, pageProps }: AppProps) {
 
   if (router.pathname === "/service") return <ThemeProvider><Navbar loggedInUser={loggedInUser} onLogout={handleLogout} /><Component {...pageProps} /></ThemeProvider>;
 
+  // Public product content must render even before session lookup completes.
+  // Protected routes retain all of their existing session and permission checks.
+  if (router.pathname === "/" && (isLoading || authError)) return <ThemeProvider><Component {...pageProps} loggedInUser={null} /></ThemeProvider>;
+
   if (authError) {
     return (
       <ThemeProvider>

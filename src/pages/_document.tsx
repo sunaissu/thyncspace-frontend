@@ -1,10 +1,12 @@
 import { Html, Head, Main, NextScript } from "next/document";
+import type { DocumentProps } from "next/document";
 import Script from "next/script";
 
-export default function Document() {
+export default function Document({ __NEXT_DATA__ }: DocumentProps) {
   return (
     <Html lang="en" suppressHydrationWarning data-scroll-behavior="smooth">
       <Head>
+        <meta name="robots" content={__NEXT_DATA__.page === '/' && process.env.NEXT_PUBLIC_SITE_URL ? 'index,follow' : 'noindex,nofollow'} />
         <meta name="application-name" content="ThyncSpace" />
         <meta
           name="application-version"
