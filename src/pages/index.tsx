@@ -17,8 +17,6 @@ export default function Home({ loggedInUser }: HomeProps) {
           content="A modern notes application to capture your thoughts, ideas, and everything in between."
         />
       </Head>
-
-      {/* ── Hero ── */}
       <section
         style={{
           position: "relative",
@@ -29,7 +27,6 @@ export default function Home({ loggedInUser }: HomeProps) {
           backgroundColor: "var(--color-bg)",
         }}
       >
-        {/* Background Graphic */}
         <div
           style={{
             position: "absolute",
@@ -53,7 +50,6 @@ export default function Home({ loggedInUser }: HomeProps) {
             textAlign: "center",
           }}
         >
-          {/* Badge */}
           <div
             style={{
               display: "inline-flex",
@@ -81,8 +77,6 @@ export default function Home({ loggedInUser }: HomeProps) {
             />
             YOUR SECOND BRAIN
           </div>
-
-          {/* Heading */}
           <h1
             style={{
               fontSize: "clamp(3.5rem, 8vw, 6.5rem)",
@@ -97,8 +91,6 @@ export default function Home({ loggedInUser }: HomeProps) {
             <br />
             <span style={{ color: "var(--color-text)" }}>Save.</span>
           </h1>
-
-          {/* Subheading */}
           <p
             style={{
               fontSize: "1.25rem",
@@ -112,8 +104,6 @@ export default function Home({ loggedInUser }: HomeProps) {
             A bold, beautifully simple notes app built to capture your thoughts
             the moment they spark. Fast, organized, and always with you.
           </p>
-
-          {/* CTA buttons */}
           <div
             style={{
               display: "flex",
@@ -159,8 +149,6 @@ export default function Home({ loggedInUser }: HomeProps) {
           </div>
         </div>
       </section>
-
-      {/* ── About / Features ── */}
       <section
         style={{ maxWidth: "1100px", margin: "0 auto", padding: "6rem 2rem" }}
       >
@@ -253,8 +241,6 @@ export default function Home({ loggedInUser }: HomeProps) {
           ))}
         </div>
       </section>
-
-      {/* ── Footer ── */}
       <footer
         style={{
           borderTop: "2px solid var(--color-border)",
