@@ -33,13 +33,17 @@ export function normalizeWikiPath(value: string) {
   }
   return parts.join("/").replace(/\.md$/i, "").toLowerCase();
 }
-export function buildWikiIndex(notes: Note[]) {
+export function buildWikiIndex<T extends Pick<Note, "_id" | "title" | "sourcePath">>(notes: T[]) {
   const ids = new Map(notes.map(note => [note._id, note]));
-  const names = new Map<string, Note[]>();
+  const names = new Map<string, T[]>();
   for (const note of notes) {
-    for (const name of new Set([normalizeWikiPath(note.title), normalizeWikiPath(note.sourcePath ?? "")].filter(Boolean))) names.set(name, [...(names.get(name) ?? []), note]);
+    for (const name of new Set([normalizeWikiPath(note.title), normalizeWikiPath(note.sourcePath ?? "")].filter(Boolean))) {
+      const matches = names.get(name);
+      if (matches) matches.push(note);
+      else names.set(name, [note]);
+    }
   }
-  return (target: string, source?: Pick<Note, "sourcePath" | "_id">): Note[] => {
+  return (target: string, source?: Pick<Note, "sourcePath" | "_id">): T[] => {
     const address = target.split("#")[0].trim();
     if (!address && source) return ids.has(source._id) ? [ids.get(source._id)!] : [];
     if (ids.has(address)) return [ids.get(address)!];
