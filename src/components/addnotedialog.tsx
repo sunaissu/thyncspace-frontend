@@ -108,7 +108,7 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave, templates 
             <span className="eyebrow">Create</span>
             <h2 id="new-note-dialog-title">Choose your note space</h2>
             <p id="new-note-dialog-description">
-              Start with a familiar document or an open visual canvas.
+              Write, draw, or bring both together in a documentation page.
             </p>
           </div>
           <button
@@ -123,6 +123,15 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave, templates 
         </header>
 
         <div className="new-note-choices">
+          <button
+            ref={defaultType === NoteType.Documentation ? firstChoiceRef : undefined}
+            type="button" className="new-note-choice new-note-choice-documentation"
+            onClick={() => addNote(NoteType.Documentation)} disabled={Boolean(loadingType)}
+          >
+            <span className="new-note-choice-icon document"><FileTextIcon size={25} weight="duotone" /></span>
+            <span className="new-note-choice-copy"><strong>Documentation</strong><span>Explain ideas with writing and editable diagrams on one page.</span><small>Text + boards · section outline · Word and PDF export</small></span>
+            {loadingType === NoteType.Documentation ? <SpinnerBallIcon className="spin" size={19} /> : <ArrowRightIcon className="new-note-choice-arrow" size={18} />}
+          </button>
           <button
             ref={defaultType === NoteType.Document ? firstChoiceRef : undefined}
             type="button"
@@ -173,7 +182,7 @@ const AddNoteDialog: React.FC<Props> = ({ open, onOpenChange, onSave, templates 
           <h3>Your templates</h3>
           {templates.length ? <>
             <label>Find a template<input value={templateSearch} onChange={event => setTemplateSearch(event.target.value)} placeholder="Search templates" /></label>
-            <div className="template-options">{templates.filter(note => note.title.toLowerCase().includes(templateSearch.toLowerCase())).map(note => <button className="btn-ghost" type="button" key={note._id} disabled={Boolean(loadingType)} onClick={() => void addNote(note.type, note)}>{note.title}<small>{note.type === NoteType.Whiteboard ? "Board" : "Document"} · create private copy</small></button>)}</div>
+            <div className="template-options">{templates.filter(note => note.title.toLowerCase().includes(templateSearch.toLowerCase())).map(note => <button className="btn-ghost" type="button" key={note._id} disabled={Boolean(loadingType)} onClick={() => void addNote(note.type, note)}>{note.title}<small>{note.type === NoteType.Documentation ? "Documentation" : note.type === NoteType.Whiteboard ? "Board" : "Document"} · create private copy</small></button>)}</div>
           </> : <p>Mark any owned document or board as a template in Organize and recover.</p>}
         </section>
         {error && <p className="new-note-dialog-error" role="alert">{error}</p>}

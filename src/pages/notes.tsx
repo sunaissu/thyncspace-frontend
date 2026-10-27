@@ -1,4 +1,5 @@
 import type { NoteTemplate } from "../util/technicalTemplates";
+import { createDocumentation, serializeDocumentation } from "../util/documentation";
 import CompanionConnections from "../components/companionConnections";
 import WorkspaceArchive from "../components/workspaceArchive";
 import PassageAi from "../components/passageAi";
@@ -26,10 +27,13 @@ import { useRouter } from "next/router";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRightIcon,
+  ArrowsInSimpleIcon,
+  ArrowsOutSimpleIcon,
   DotsThreeIcon,
   CaretDownIcon,
   CheckIcon,
   FileTextIcon,
+  FunnelSimpleIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   PushPinIcon,
@@ -87,6 +91,7 @@ const relativeDate = (date: string) => {
 
 const notePreview = (note: Note) => {
   if (note.type === NoteType.Whiteboard) return "Visual canvas";
+    if (note.type === NoteType.Documentation) return noteSearchSnippet(note, "") || "Text and boards in one page";
   const content = (note as DocumentNote).content || "";
   return (
     content
@@ -141,11 +146,54 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const [obsidianOpen, setObsidianOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [noteBrowserOpen, setNoteBrowserOpen] = useState(true);
+  const [noteMaximized, setNoteMaximized] = useState(false);
+  const [compactLayout, setCompactLayout] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const sidebarDialog = useRef<HTMLDialogElement>(null);
+  const noteStage = useRef<HTMLElement>(null);
+  const sidebarSelection = useRef<{ anchor: Range; focus: Range; anchorNode: Node; focusNode: Node } | null>(null);
+  const focusSidebarSearch = useRef(false);
+  const drawerMode = compactLayout || noteMaximized;
+  const rememberSidebarSelection = () => {
+    const selection = document.getSelection();
+    sidebarSelection.current = null;
+    if (!selection?.anchorNode || !selection.focusNode || !noteStage.current?.contains(selection.anchorNode) || !noteStage.current.contains(selection.focusNode)) return;
+    const anchor = document.createRange();
+    anchor.setStart(selection.anchorNode, selection.anchorOffset);
+    anchor.collapse(true);
+    const focus = document.createRange();
+    focus.setStart(selection.focusNode, selection.focusOffset);
+    focus.collapse(true);
+    sidebarSelection.current = { anchor, focus, anchorNode: selection.anchorNode, focusNode: selection.focusNode };
+  };
+  const handleSidebarClose = () => {
+    setSidebarOpen(false);
+    const saved = sidebarSelection.current;
+    sidebarSelection.current = null;
+    if (!saved || document.querySelector("dialog[open], [aria-modal=true]")) return;
+    const { anchor, focus, anchorNode, focusNode } = saved;
+    if (!anchorNode.isConnected || !focusNode.isConnected || !noteStage.current?.contains(anchor.startContainer) || !noteStage.current.contains(focus.startContainer)) return;
+    const focused = document.activeElement;
+    document.getSelection()?.setBaseAndExtent(anchor.startContainer, anchor.startOffset, focus.startContainer, focus.startOffset);
+    if (focused instanceof HTMLElement) focused.focus({ preventScroll: true });
+  };
+  const closeSidebar = () => {
+    sidebarDialog.current?.close();
+    setSidebarOpen(false);
+  };
   const [error, setError] = useState("");
   const mobileToolsDialog = useRef<HTMLDialogElement>(null);
   const openMobileTool = (action: () => void) => { mobileToolsDialog.current?.close(); action(); };
   const searchInputRef = useRef<HTMLInputElement>(null);
   useEffect(() => { if (router.isReady && router.query.reminders === "1") setRemindersOpen(true); }, [router.isReady, router.query.reminders]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 760px), (max-width: 1000px) and (max-height: 500px)");
+    const updateLayout = () => setCompactLayout(media.matches);
+    updateLayout();
+    media.addEventListener("change", updateLayout);
+    return () => media.removeEventListener("change", updateLayout);
+  }, []);
 
   useEffect(() => {
     if (!router.isReady) return;
@@ -197,19 +245,29 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     const handleShortcut = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
       if (event.key === "/" && !event.defaultPrevented && !event.isComposing && !event.ctrlKey && !event.metaKey && !event.altKey && !target.closest("input, textarea, select, [contenteditable], [role=textbox]")) {
+        if (document.querySelector("dialog[open]:not(.note-sidebar-dialog), [aria-modal=true]")) return;
         event.preventDefault();
-        searchInputRef.current?.focus();
+        if (drawerMode && selectedNoteId && !sidebarDialog.current?.open) {
+          rememberSidebarSelection();
+          focusSidebarSearch.current = true;
+          setSidebarOpen(true);
+        } else {
+          setNoteBrowserOpen(true);
+          window.requestAnimationFrame(() => searchInputRef.current?.focus());
+        }
       }
     };
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, []);
+  }, [drawerMode, selectedNoteId]);
 
   useEffect(() => { if (selectedNoteId) recordOpen(selectedNoteId); }, [selectedNoteId, recordOpen]);
   useEffect(() => { if (secondaryNoteId) recordOpen(secondaryNoteId); }, [secondaryNoteId, recordOpen]);
 
   const closeOrSwitchNote = (newId: string | null) => {
+    closeSidebar();
     if (newId === selectedNoteId) return;
+    if (!newId) setNoteMaximized(false);
     if (newId === secondaryNoteId) setSecondaryNoteId(null);
     setSelectedNoteId(newId);
     if (newId) {
@@ -221,8 +279,8 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   const handleCreateNote = async (type: NoteType, template?: NoteTemplate) => {
     try {
       const newNote = (await NotesApi.createNotes({
-        title: template ? `${template.title.slice(0, 190)} copy` : "Untitled Note",
-        text: template ? typeof template.content === "string" ? template.content : JSON.stringify(template.content) : undefined,
+        title: template ? `${template.title.slice(0, 190)} copy` : type === NoteType.Documentation ? "Untitled Documentation" : "Untitled Note",
+        text: template ? typeof template.content === "string" ? template.content : JSON.stringify(template.content) : type === NoteType.Documentation ? serializeDocumentation(createDocumentation()) : undefined,
         type,
       })) as Note;
       closeOrSwitchNote(newNote._id);
@@ -347,7 +405,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
         if (filter === "pinned") return workspace.data.pinned.includes(note._id);
         if (filter === "recent") return workspace.data.recent.some(entry => entry.noteId === note._id);
         if (filter === "shared") return note.owner !== loggedInUser?._id;
-        if (filter === "documents") return note.type === NoteType.Document;
+        if (filter === "documents") return note.type !== NoteType.Whiteboard;
         if (filter === "boards") return note.type === NoteType.Whiteboard;
         if (filter === "favorites") {
           return loggedInUser
@@ -365,6 +423,22 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
   }, [filter, loggedInUser, notes, search, notebookFilter, searchFilters, workspace.data]);
 
   const activeNote = notes.find((note) => note._id === selectedNoteId) || null;
+  const hasActiveNote = Boolean(activeNote);
+  useEffect(() => {
+    const dialog = sidebarDialog.current;
+    if (!dialog) return;
+    if (sidebarOpen && drawerMode && hasActiveNote) {
+      if (!dialog.open) dialog.showModal();
+      if (focusSidebarSearch.current) {
+        searchInputRef.current?.focus();
+        focusSidebarSearch.current = false;
+      } else {
+        dialog.querySelector<HTMLButtonElement>("[aria-label='Close notes sidebar']")?.focus();
+      }
+    } else {
+      dialog.close();
+    }
+  }, [sidebarOpen, drawerMode, hasActiveNote]);
   const secondaryNote = notes.find(note => note._id === secondaryNoteId && note._id !== selectedNoteId) ?? null;
   const secondaryOwner = secondaryNote?.owner === loggedInUser?._id;
   const secondaryLive = !secondaryOwner || Boolean(secondaryNote?.sharedWith.length);
@@ -398,6 +472,148 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
     { value: "favorites", label: "Starred" },
   ];
 
+  const activeFilterCount = Number(Boolean(notebookFilter)) + Number(filter !== "all")
+    + Object.entries(searchFilters).filter(([key, value]) => value !== emptySearchFilters[key as keyof typeof emptySearchFilters]).length;
+  const noteBrowserContent = <>
+    <header className="note-browser-header">
+      <strong>Notes</strong><span className="notes-count">{notes.length}</span>
+      <div className="note-browser-header-actions">
+        <button type="button" aria-label="New note" title="New note" onClick={() => { closeSidebar(); setNewNoteDialogOpen(true); }}><PlusIcon size={19} /></button>
+        <button type="button" aria-label="Workspace tools" title="Workspace tools" onClick={() => { closeSidebar(); mobileToolsDialog.current?.showModal(); }}><DotsThreeIcon size={22} /></button>
+        <button type="button" aria-label="Close notes sidebar" title="Close notes sidebar" onClick={closeSidebar}><XIcon size={19} /></button>
+      </div>
+    </header>
+    <div className="note-browser-tools">
+      <label className="note-search">
+        <MagnifyingGlassIcon size={17} />
+        <input
+          ref={searchInputRef}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          maxLength={300}
+          placeholder="Search everything"
+          aria-label="Search notes"
+        />
+        {!search && <kbd>/</kbd>}
+        {search && (
+          <button type="button" onClick={() => setSearch("")} aria-label="Clear search">
+            <XIcon size={14} />
+          </button>
+        )}
+      </label>
+
+
+      {workspace.error && <p role="alert">{workspace.error}</p>}
+      <details className="note-browser-filters">
+        <summary><FunnelSimpleIcon size={15} /><span>Filters</span>{activeFilterCount > 0 && <span className="notes-count">{activeFilterCount}</span>}<CaretDownIcon size={13} /></summary>
+        <div className="note-browser-filter-fields">
+          <label className="notebook-filter">Notebook<select value={notebookFilter} onChange={event => setNotebookFilter(event.target.value)}><option value="">All notebooks</option>{[...new Set(notes.flatMap(note => (note.notebook ?? "").split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"))).filter(Boolean))].sort().map(name => <option key={name} value={name}>{name}</option>)}</select></label>
+          {filter === "recent" && <button type="button" className="btn-ghost" onClick={() => { void workspace.update({ action: "clear-recent" }); }}>Clear recently opened</button>}
+          <label className="note-filter-select">
+            <span>Filter notes</span>
+            <select
+              value={filter}
+              onChange={(event) => setFilter(event.target.value as NoteFilter)}
+            >
+              {filterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <AdvancedSearch filters={searchFilters} onChange={setSearchFilters} searches={workspace.data.searches}
+            onApply={saved => { setSearch(saved.query); setNotebookFilter(saved.notebook); setFilter(saved.view); setSearchFilters({ owner: saved.owner, type: saved.type, tag: saved.tag, from: saved.from, to: saved.to }); }}
+            onSave={name => { void workspace.update({ action: "save-search", search: { id: crypto.randomUUID(), name, query: search.trim(), notebook: notebookFilter, view: filter, ...searchFilters } }); }}
+            onDelete={id => { void workspace.update({ action: "delete-search", id }); }} />
+        </div>
+      </details>
+    </div>
+
+    <div className="note-list" aria-label="Notes">
+      {isLoading ? (
+        <div className="note-list-loading">
+          <SpinnerBallIcon className="spin" size={24} />
+          Loading your notes…
+        </div>
+      ) : (
+        filteredNotes.map((note) => {
+          const favorite = loggedInUser
+            ? isNoteFavorited(note, loggedInUser._id)
+            : false;
+          const sharedWithUser = note.owner !== loggedInUser?._id;
+          const permission = note.sharedWith.find(
+            ({ userId }) => userId === loggedInUser?._id,
+          )?.permission;
+          return (
+            <button
+              key={note._id}
+              type="button"
+              className={note._id === selectedNoteId ? "note-list-item is-active" : "note-list-item"}
+              onClick={() => closeOrSwitchNote(note._id)}
+              aria-current={note._id === selectedNoteId ? "true" : undefined}
+            >
+              <span className={note.type !== NoteType.Whiteboard ? "note-type-icon document" : "note-type-icon board"}>
+                {note.type !== NoteType.Whiteboard ? (
+                  <FileTextIcon size={17} weight="bold" />
+                ) : (
+                  <SquaresFourIcon size={17} weight="bold" />
+                )}
+              </span>
+              <span className="note-list-copy">
+                <span className="note-list-title-row">
+                  <strong>{note.title || "Untitled"}</strong>
+                  <time title={new Date(note.updatedAt).toLocaleString()}>
+                    {relativeDate(note.updatedAt)}
+                  </time>
+                </span>
+                <span className="note-list-preview">{search.trim() ? noteSearchSnippet(note, search) || notePreview(note) : notePreview(note)}</span>
+                <span className="note-list-meta">
+                  {favorite && <StarIcon size={11} weight="fill" />}
+                  {note.type === NoteType.Documentation ? "Documentation" : note.type === NoteType.Document ? "Document" : "Whiteboard"}
+                  {sharedWithUser ? (
+                    <span>
+                      Shared · {permission === "editor" ? "Can edit" : "View only"}
+                    </span>
+                  ) : note.sharedWith?.length > 0 ? (
+                    <span>{note.sharedWith.length} shared</span>
+                  ) : null}
+                </span>
+              </span>
+            </button>
+          );
+        })
+      )}
+
+      {!isLoading && filteredNotes.length === 0 && (
+        <div className="note-list-empty">
+          <MagnifyingGlassIcon size={24} />
+          <strong>
+            {search
+              ? "No matching notes"
+              : filter === "shared"
+                ? "Nothing shared with you"
+                : "Nothing here yet"}
+          </strong>
+          <span>
+            {search
+              ? "Try a different word or filter."
+              : filter === "shared"
+                ? "Notes others share with you will appear here."
+                : "Create a document or import Markdown."}
+          </span>
+        </div>
+      )}
+    </div>
+
+    <div className="note-browser-footer">
+      <span>Updated automatically</span>
+      <button type="button" onClick={() => { closeSidebar(); setObsidianOpen(true); }}>
+        Import Markdown
+      </button>
+    </div>
+  </>;
+
   return (
     <AppLayout>
       <NoteContext.Provider value={{ notes, setNotes }}>
@@ -409,23 +625,18 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           />
         </Head>
 
-        <div className={activeNote ? "notes-page has-active-note" : "notes-page"}>
+        <div className={activeNote ? `notes-page has-active-note${activeNote.type === NoteType.Documentation ? " has-documentation" : ""}${noteMaximized ? " is-maximized" : ""}` : "notes-page"}>
           <header className="workspace-topbar">
             <div className="workspace-title">
-              <span className="eyebrow">Workspace</span>
               <div>
                 <h1>Notes</h1>
                 <span className="notes-count">{notes.length}</span>
               </div>
             </div>
             <div className="workspace-actions">
-              <Link className="btn-ghost" href="/capture/">Capture</Link>
-              <button className="btn-ghost" type="button" onClick={() => setSchedulesOpen(true)}>Daily notes</button>
-              <button className="btn-ghost" type="button" disabled={!activeNote || !isOwner} onClick={() => setActivityOpen(true)}>Activity</button>
-              <button className="btn-ghost" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
-              <button className="btn-ghost" type="button" aria-expanded={tasksOpen} onClick={() => { setTasksOpen(value => !value); setLibraryOpen(false); }}>Tasks</button>
+              <button className="btn-ghost workspace-connections-button" type="button" disabled={!activeNote} aria-expanded={connectionsOpen} onClick={() => setConnectionsOpen(value => !value)}>Connections</button>
               <CommandPalette onCompanion={() => setCompanionOpen(true)} onArchive={() => setArchiveOpen(true)} onAi={() => setAiOpen(true)} onNotebooks={() => setNotebooksOpen(true)} onDiscussions={() => setDiscussionsOpen(true)} onSources={() => setSourcesOpen(true)} onOffline={() => void cacheSelectedOffline()} onReminders={() => setRemindersOpen(true)} onAttachments={() => setAttachmentsOpen(true)} onStudy={() => setStudyOpen(true)} notes={notes} onOpenNote={closeOrSwitchNote} onNewNote={() => setNewNoteDialogOpen(true)} onLibrary={() => setLibraryOpen(true)} onImport={() => setObsidianOpen(true)} />
-              <button type="button" className="btn-ghost" onClick={() => setLibraryOpen(open => !open)} aria-expanded={libraryOpen}>Organize and recover</button>
+              <button type="button" className="btn-ghost workspace-tools-button" onClick={() => mobileToolsDialog.current?.showModal()} aria-label="Workspace tools" aria-haspopup="dialog"><DotsThreeIcon size={21} /><span>Tools</span></button>
               <button
                 type="button"
                 className={noteBrowserOpen ? "note-list-toggle is-active" : "note-list-toggle"}
@@ -460,7 +671,6 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           {discussionsOpen && loggedInUser && <Discussions key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?._id} onClose={() => setDiscussionsOpen(false)} onOpenNote={closeOrSwitchNote} />}
           {studyOpen && loggedInUser && <StudyTools key={loggedInUser._id} owner={loggedInUser._id} notes={notes} initialNoteId={activeNote?.type === "document" ? activeNote._id : undefined} onOpenNote={closeOrSwitchNote} onClose={() => setStudyOpen(false)} />}
           {activityOpen && activeNote && isOwner && <NoteActivity noteId={activeNote._id} title={activeNote.title} onClose={() => setActivityOpen(false)} />}
-          {connectionsOpen && activeNote && <NoteConnections notes={notes} note={activeNote} onOpen={closeOrSwitchNote} onClose={() => setConnectionsOpen(false)} />}
           {tasksOpen && <TaskOverview notes={notes} onOpenNote={closeOrSwitchNote} onClose={() => setTasksOpen(false)} />}
           {libraryOpen && <NoteLibrary key={isOwner ? activeNote?._id : "trash"} note={isOwner ? activeNote : null}
             ownedNotes={notes.filter(note => note.owner === loggedInUser?._id)}
@@ -479,143 +689,30 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
           )}
 
           <div
-            className={`${activeNote ? "notes-workspace has-active-note" : "notes-workspace"}${noteBrowserOpen ? "" : " is-browser-collapsed"}`}
+            className={`${activeNote ? "notes-workspace has-active-note" : "notes-workspace"}${(drawerMode ? !activeNote : noteBrowserOpen) ? "" : " is-browser-collapsed"}`}
           >
-            <aside className="note-browser" id="note-browser-panel">
-              <div className="note-browser-tools">
-                <label className="notebook-filter">Notebook<select value={notebookFilter} onChange={event => setNotebookFilter(event.target.value)}><option value="">All notebooks</option>{[...new Set(notes.flatMap(note => (note.notebook ?? "").split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"))).filter(Boolean))].sort().map(name => <option key={name} value={name}>{name}</option>)}</select></label>
-                <label className="note-search">
-                  <MagnifyingGlassIcon size={17} />
-                  <input
-                    ref={searchInputRef}
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    maxLength={300}
-                    placeholder="Search everything"
-                    aria-label="Search notes"
-                  />
-                  {!search && <kbd>/</kbd>}
-                  {search && (
-                    <button type="button" onClick={() => setSearch("")} aria-label="Clear search">
-                      <XIcon size={14} />
-                    </button>
-                  )}
-                </label>
+            {(!drawerMode || !activeNote) && <aside className="note-browser" id="note-browser-panel">
+              {noteBrowserContent}
+            </aside>}
 
-                <AdvancedSearch filters={searchFilters} onChange={setSearchFilters} searches={workspace.data.searches}
-                  onApply={saved => { setSearch(saved.query); setNotebookFilter(saved.notebook); setFilter(saved.view); setSearchFilters({ owner: saved.owner, type: saved.type, tag: saved.tag, from: saved.from, to: saved.to }); }}
-                  onSave={name => { void workspace.update({ action: "save-search", search: { id: crypto.randomUUID(), name, query: search.trim(), notebook: notebookFilter, view: filter, ...searchFilters } }); }}
-                  onDelete={id => { void workspace.update({ action: "delete-search", id }); }} />
-                {workspace.error && <p role="alert">{workspace.error}</p>}
-                {filter === "recent" && <button type="button" className="btn-ghost" onClick={() => { void workspace.update({ action: "clear-recent" }); }}>Clear recently opened</button>}
-                <label className="note-filter-select">
-                  <span>Filter notes</span>
-                  <select
-                    value={filter}
-                    onChange={(event) => setFilter(event.target.value as NoteFilter)}
-                  >
-                    {filterOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-
-              <div className="note-list" aria-label="Notes">
-                {isLoading ? (
-                  <div className="note-list-loading">
-                    <SpinnerBallIcon className="spin" size={24} />
-                    Loading your notes…
-                  </div>
-                ) : (
-                  filteredNotes.map((note) => {
-                    const favorite = loggedInUser
-                      ? isNoteFavorited(note, loggedInUser._id)
-                      : false;
-                    const sharedWithUser = note.owner !== loggedInUser?._id;
-                    const permission = note.sharedWith.find(
-                      ({ userId }) => userId === loggedInUser?._id,
-                    )?.permission;
-                    return (
-                      <button
-                        key={note._id}
-                        type="button"
-                        className={note._id === selectedNoteId ? "note-list-item is-active" : "note-list-item"}
-                        onClick={() => closeOrSwitchNote(note._id)}
-                        aria-current={note._id === selectedNoteId ? "true" : undefined}
-                      >
-                        <span className={note.type === NoteType.Document ? "note-type-icon document" : "note-type-icon board"}>
-                          {note.type === NoteType.Document ? (
-                            <FileTextIcon size={17} weight="bold" />
-                          ) : (
-                            <SquaresFourIcon size={17} weight="bold" />
-                          )}
-                        </span>
-                        <span className="note-list-copy">
-                          <span className="note-list-title-row">
-                            <strong>{note.title || "Untitled"}</strong>
-                            <time title={new Date(note.updatedAt).toLocaleString()}>
-                              {relativeDate(note.updatedAt)}
-                            </time>
-                          </span>
-                          <span className="note-list-preview">{search.trim() ? noteSearchSnippet(note, search) || notePreview(note) : notePreview(note)}</span>
-                          <span className="note-list-meta">
-                            {favorite && <StarIcon size={11} weight="fill" />}
-                            {note.type === NoteType.Document ? "Document" : "Whiteboard"}
-                            {sharedWithUser ? (
-                              <span>
-                                Shared · {permission === "editor" ? "Can edit" : "View only"}
-                              </span>
-                            ) : note.sharedWith?.length > 0 ? (
-                              <span>{note.sharedWith.length} shared</span>
-                            ) : null}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })
-                )}
-
-                {!isLoading && filteredNotes.length === 0 && (
-                  <div className="note-list-empty">
-                    <MagnifyingGlassIcon size={24} />
-                    <strong>
-                      {search
-                        ? "No matching notes"
-                        : filter === "shared"
-                          ? "Nothing shared with you"
-                          : "Nothing here yet"}
-                    </strong>
-                    <span>
-                      {search
-                        ? "Try a different word or filter."
-                        : filter === "shared"
-                          ? "Notes others share with you will appear here."
-                          : "Create a document or import Markdown."}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <div className="note-browser-footer">
-                <span>Updated automatically</span>
-                <button type="button" onClick={() => setObsidianOpen(true)}>
-                  Import Markdown
-                </button>
-              </div>
-            </aside>
-
-            <section className="note-stage">
+            <section ref={noteStage} className="note-stage">
               {activeNote ? (
                 <>
                   <header className="active-note-header">
                     <button
                       type="button"
                       className="mobile-back-button"
-                      onClick={() => closeOrSwitchNote(null)}
-                      aria-label="Back to notes"
+                      onPointerDown={rememberSidebarSelection}
+                      onKeyDown={event => { if (event.key === "Enter" || event.key === " ") rememberSidebarSelection(); }}
+                      onClick={() => {
+                        if (!sidebarSelection.current) rememberSidebarSelection();
+                        setSidebarOpen(true);
+                      }}
+                      aria-label="Open notes sidebar"
+                      title="Open notes sidebar"
+                      aria-haspopup="dialog"
+                      aria-controls="mobile-note-browser"
+                      aria-expanded={sidebarOpen}
                     >
                       <SidebarSimpleIcon size={19} />
                     </button>
@@ -627,7 +724,7 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                         onUpdateTitle={handleUpdateTitle}
                       />
                       <div className="active-note-context">
-                        <span>{activeNote.type === NoteType.Document ? "Note document" : "Whiteboard"}</span>
+                        <span>{activeNote.type === NoteType.Documentation ? "Documentation" : activeNote.type === NoteType.Document ? "Note document" : "Whiteboard"}</span>
                         <span className="context-separator">/</span>
                         {saveStatus === "saving" && (
                           <span className="save-status">
@@ -646,6 +743,18 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                     </div>
 
                     <div className="active-note-actions">
+                      <button
+                        type="button"
+                        className="icon-button note-maximize-toggle"
+                        aria-label={noteMaximized ? "Restore workspace" : "Maximize note"}
+                        aria-pressed={noteMaximized}
+                        title={noteMaximized ? "Restore workspace" : "Maximize note"}
+                        onPointerDown={event => event.preventDefault()}
+                        onClick={() => setNoteMaximized(value => !value)}
+                      >
+                        {noteMaximized ? <ArrowsInSimpleIcon size={18} /> : <ArrowsOutSimpleIcon size={18} />}
+                        <span>{noteMaximized ? "Restore" : "Maximize"}</span>
+                      </button>
                       <button type="button" className="icon-button workspace-tools-toggle" aria-label="Workspace tools" onClick={() => mobileToolsDialog.current?.showModal()}><DotsThreeIcon size={22} /></button>
                       <button type="button" className="icon-button split-view-toggle" aria-label="Split view" aria-pressed={Boolean(secondaryNote)} disabled={notes.length < 2} title="Keep two notes open independently" onClick={() => { setSecondaryStatus("idle"); setSecondaryNoteId(secondaryNote ? null : (notes.find(note => note._id !== activeNote._id && note.type !== activeNote.type) ?? notes.find(note => note._id !== activeNote._id))?._id ?? null); }}><SquaresFourIcon size={17} /><span>Split view</span></button>
                       <button type="button" className="icon-button" aria-label={workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"} title={workspace.data.pinned.includes(activeNote._id) ? "Unpin note" : "Pin note"} aria-pressed={workspace.data.pinned.includes(activeNote._id)} onClick={() => { void workspace.update({ action: workspace.data.pinned.includes(activeNote._id) ? "unpin" : "pin", noteId: activeNote._id }); }}><PushPinIcon size={18} weight={workspace.data.pinned.includes(activeNote._id) ? "fill" : "regular"} /></button>
@@ -739,8 +848,17 @@ const Notes: React.FC<NotesPageProps> = ({ loggedInUser }) => {
                 </div>
               )}
             </section>
+            {connectionsOpen && activeNote && <aside className="workspace-connections-panel" aria-label="Note connections">
+              <NoteConnections notes={notes} note={activeNote} onOpen={closeOrSwitchNote} onClose={() => setConnectionsOpen(false)} />
+            </aside>}
           </div>
         </div>
+
+        <dialog ref={sidebarDialog} id="mobile-note-browser" className="note-sidebar-dialog" aria-label="Notes sidebar"
+          onClose={handleSidebarClose}
+          onClick={event => { if (event.target === event.currentTarget) closeSidebar(); }}>
+          {drawerMode && activeNote && <div className="note-browser">{noteBrowserContent}</div>}
+        </dialog>
 
         <dialog ref={mobileToolsDialog} className="workspace-tools-menu" aria-label="Workspace tools">
           <header><h2>Workspace tools</h2><button type="button" className="btn-ghost" onClick={() => mobileToolsDialog.current?.close()}>Close tools</button></header>

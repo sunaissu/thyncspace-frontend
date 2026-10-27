@@ -9,7 +9,7 @@ export default function AdvancedSearch({ filters, onChange, searches, onApply, o
   const [name, setName] = useState("");
   return <details className="advanced-note-search"><summary>Advanced search and saved views</summary>
     <label>Note owner<select value={filters.owner} onChange={event => onChange({ ...filters, owner: event.target.value as SearchFilters["owner"] })}><option value="all">Anyone</option><option value="mine">Owned by me</option><option value="shared">Shared with me</option></select></label>
-    <label>Note type<select value={filters.type} onChange={event => onChange({ ...filters, type: event.target.value as SearchFilters["type"] })}><option value="all">Any type</option><option value="document">Document</option><option value="whiteboard">Whiteboard</option></select></label>
+    <label>Note type<select value={filters.type} onChange={event => onChange({ ...filters, type: event.target.value as SearchFilters["type"] })}><option value="all">Any type</option><option value="document">Document</option><option value="whiteboard">Whiteboard</option><option value="documentation">Documentation</option></select></label>
     <label>Exact tag<input value={filters.tag} maxLength={40} onChange={event => onChange({ ...filters, tag: event.target.value })} /></label>
     <label>Updated from (UTC)<input type="date" value={filters.from} onChange={event => onChange({ ...filters, from: event.target.value })} /></label>
     <label>Updated through (UTC)<input type="date" value={filters.to} min={filters.from || undefined} onChange={event => onChange({ ...filters, to: event.target.value })} /></label>

@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import DocumentationPreview from "./documentationPreview";
+import { parseDocumentation } from "../util/documentation";
 import { MarkdownRenderer } from "@sunaissu/document-editor";
 import { Noteboard, exportBoardImage, type NoteboardRef } from "@sunaissu/noteboard";
 import { type Note, type LinkedSelection } from "../model/note";
@@ -9,7 +11,7 @@ import { readBoard, selectedContent, selectionDescription, sourceExport } from "
 import LinkedSelectionEditor from "./linkedSelectionEditor";
 
 function BoardSourcePreview({ board }: { board: ReturnType<typeof readBoard> }) {
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, packageBrandColors, packageScrollbar } = useTheme();
   const container = useRef<HTMLDivElement>(null), instance = useRef<NoteboardRef>(null);
   const ids = JSON.stringify(board.elements.filter(element => !element.isDeleted).map(element => element.id));
   useEffect(() => {
@@ -19,12 +21,13 @@ function BoardSourcePreview({ board }: { board: ReturnType<typeof readBoard> }) 
     const observer = new ResizeObserver(frameContent); observer.observe(node); frameContent();
     return () => { observer.disconnect(); cancelAnimationFrame(frame); cancelAnimationFrame(nextFrame); };
   }, [ids]);
-  return <div className="linked-board-preview" ref={container}><Noteboard elements={board.elements} initialViewport={board.viewport} ref={instance} readOnly theme={resolvedTheme} /></div>;
+  return <div className="linked-board-preview" ref={container}><Noteboard elements={board.elements} initialViewport={board.viewport} ref={instance} readOnly theme={resolvedTheme} brandColors={packageBrandColors} scrollbar={packageScrollbar} /></div>;
 }
 function SourcePreview({ value }: { value: Api.LinkedPreview }) {
   const focusKey = value.noteId + ":" + value.revision + ":" + JSON.stringify(value.selection);
   let content: string;
   try { content = selectedContent(value); } catch (error) { return <p role="alert">{error instanceof Error ? error.message : "Refresh this selection."}</p>; }
+  if (value.type === "documentation") return <DocumentationPreview value={content} />;
   if (value.type === "document") return <div className="linked-document-preview"><MarkdownRenderer content={content} openLinksInNewTab /></div>;
   let board; try { board = readBoard(content); } catch { return <p role="alert">This board could not be previewed. Open the source to inspect it.</p>; }
   return <BoardSourcePreview key={focusKey} board={board} />;
@@ -62,10 +65,17 @@ export default function LinkedSources({ note, notes, requestedOpen, onClose, onO
       const current = await Api.fetchLinkedPreview(note._id, preview.noteId);
       const content = selectedContent(current);
       const image = current.type === "whiteboard" ? await exportBoardImage(readBoard(content).elements, "png") : undefined;
+      let exported: Blob;
+      if (current.type === "documentation") {
+        const document = parseDocumentation(content);
+        if (!document) throw new Error("This documentation could not be exported.");
+        const { exportDocumentation } = await import("../util/documentationExport");
+        exported = await exportDocumentation(document, current.title, "docx");
+      } else exported = new Blob([sourceExport(current, window.location.origin, image)], { type: "text/html;charset=utf-8" });
       const checked = await Api.fetchLinkedPreview(note._id, current.noteId);
       if (checked.revision !== current.revision || JSON.stringify(checked.selection) !== JSON.stringify(current.selection)) throw new Error("The source changed during export. Refresh and try again.");
-      const url = URL.createObjectURL(new Blob([sourceExport(current, window.location.origin, image)], { type: "text/html;charset=utf-8" }));
-      const link = document.createElement("a"); link.href = url; link.download = "thyncspace-linked-source.html"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      const url = URL.createObjectURL(exported);
+      const link = document.createElement("a"); link.href = url; link.download = current.type === "documentation" ? "thyncspace-linked-source.docx" : "thyncspace-linked-source.html"; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (error) { if (active.current) setError(error instanceof Error ? error.message : "Could not export this source."); }
     finally { if (active.current) setBusy(false); }
   };
@@ -74,10 +84,10 @@ export default function LinkedSources({ note, notes, requestedOpen, onClose, onO
     <header><button type="button" className="btn-ghost" aria-expanded={isOpen} onClick={() => { if (isOpen) { setExpanded(false); onClose(); } else setExpanded(true); }}>Linked sources ({data?.entries.length ?? note.linkedSources?.length ?? 0})</button>{isOpen && <button type="button" className="btn-ghost" disabled={busy} onClick={() => setRefresh(value => value + 1)}>Refresh sources</button>}</header>
     {isOpen && <div ref={bodyRef} className="linked-sources-body"><p>Previews use the current source. Each viewer needs access to both notes; linking a source does not grant access. Open previews recheck access every 30 seconds.</p>
       {error && <p role="alert">{error}</p>}{!data && !error && <p role="status">Loading linked sources…</p>}
-      {data?.canEdit && <form className="linked-source-add" onSubmit={event => { event.preventDefault(); void change("add", sourceId); }}><label>Source to link<select aria-label="Source to link" value={sourceId} disabled={busy} onChange={event => setSourceId(event.target.value)}><option value="">Choose a document or board</option>{notes.filter(source => source._id !== note._id && !data.entries.some(entry => entry.noteId === source._id)).map(source => <option key={source._id} value={source._id}>{source.title} · {source.type}</option>)}</select></label><button type="submit" className="btn-primary" disabled={busy || !sourceId || data.entries.length >= 20}>Link source</button></form>}
+      {data?.canEdit && <form className="linked-source-add" onSubmit={event => { event.preventDefault(); void change("add", sourceId); }}><label>Source to link<select aria-label="Source to link" value={sourceId} disabled={busy} onChange={event => setSourceId(event.target.value)}><option value="">Choose a note</option>{notes.filter(source => source._id !== note._id && !data.entries.some(entry => entry.noteId === source._id)).map(source => <option key={source._id} value={source._id}>{source.title} · {source.type}</option>)}</select></label><button type="submit" className="btn-primary" disabled={busy || !sourceId || data.entries.length >= 20}>Link source</button></form>}
       <div className="linked-source-list">{data?.entries.map(entry => <article key={entry.noteId}><strong>{entry.title}</strong><span>{entry.available ? entry.stale ? "Source changed since last reviewed" : "Reviewed source revision" : "Source unavailable or access removed"}</span><div><button type="button" className="btn-ghost" disabled={!entry.available || busy} onClick={() => setPreviewId(entry.noteId)}>Preview source</button><button type="button" className="btn-ghost" disabled={!entry.available || busy} onClick={() => onOpenNote(entry.noteId)}>Open source</button>{data.canEdit && <button type="button" className="btn-ghost" disabled={busy} onClick={() => void change("remove", entry.noteId)}>Unlink source</button>}</div></article>)}</div>
       {previewId && <div ref={previewRef} className="linked-source-preview">{!accessible ? <p>This source is currently unavailable.</p> : preview?.noteId === previewId ? <><div className="linked-preview-header"><h3>{preview.title} · current preview</h3>{data?.canEdit && <button type="button" className="btn-ghost" disabled={busy} onClick={() => void change("review", previewId)}>Mark this revision reviewed</button>}<button type="button" className="btn-ghost" onClick={() => setPreviewId("")}>Close preview</button></div><p>{selectionDescription(preview.selection)}</p>{data?.canEdit && <LinkedSelectionEditor key={preview.noteId + ":" + preview.revision + ":" + JSON.stringify(preview.selection)} value={preview} busy={busy} onSave={selection => change("select", previewId, selection)} />}<SourcePreview value={preview} /><p>Static exports contain source content and remain readable after access is removed. Share the downloaded file only with intended recipients.</p><button type="button" className="btn-ghost" disabled={busy || Boolean(preview.selection && (preview.selection.needsReview || preview.selection.revision !== preview.revision))} onClick={() => void exportPreview()}>Download static source</button></> : previewError ? <p role="alert">{previewError}</p> : <p role="status">Loading source preview…</p>}</div>}
-      {data && !data.entries.length && <p>No linked sources yet. You can link up to 20 documents or boards.</p>}
+      {data && !data.entries.length && <p>No linked sources yet. You can link up to 20 notes.</p>}
     </div>}
   </section>;
 }

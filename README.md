@@ -4,6 +4,28 @@ The static Next.js frontend for ThyncSpace, a private technical thinking
 workspace with document notes, whiteboards, calculations, sharing, real-time
 collaboration, Markdown portability, and installable PWA support.
 
+## Documentation
+
+Choose **New note → Documentation** to put writing and editable diagrams on the
+same page. Add text or diagram sections, name them in the outline, move or
+duplicate them, and add captions. Diagrams expand into a larger drawing space.
+The Read view presents the page without editing controls.
+
+Documentation uses the existing note permissions, autosave, version history,
+offline library, and shared notebooks. Shared text and diagrams sync by section;
+canvas navigation stays local to each viewer. Empty pages offer Project,
+Meeting, and Blank starters. Existing content is never replaced by a starter.
+
+The **Word** and **PDF** buttons export a snapshot in the browser. Word retains
+editable text, headings, lists, and tables; diagrams become PNG images. Remote
+Markdown images are represented by their links without fetching them. Embedded
+images are included, and unavailable board image data produces an export error.
+Documents support up to 40 sections within the existing 1 MiB note limit.
+
+Run `npm.cmd run test:documentation` against the local app for creation,
+authoring, save/reload, export, phone layouts, and recovery checks. Run
+`npm.cmd run test:documentation-export` for export structure and rendering checks.
+
 This directory is intended to become the standalone private GitHub repository
 `sunaissu/thyncspace-frontend`.
 
@@ -35,6 +57,29 @@ npm.cmd run dev
 
 Open `http://localhost:3000`.
 
+### Local two-account testing
+
+With both sibling projects installed, build the backend once, then start the
+isolated local setup from this directory:
+
+```powershell
+npm.cmd --prefix ../backend run build
+npm.cmd run dev:dual-account
+```
+
+Open `http://127.0.0.1:3010/register/` in two separate Chrome profiles, or one
+normal window and one Incognito window. Create different usernames and emails;
+local test addresses such as `first@example.test` work. Passwords need at least
+12 characters. Share a note using the second account's username, give it Editor
+access, and open it in both sessions to check simultaneous edits and cursors.
+
+The runner uses a separate local database on port 27028 and API on port 5001.
+Signup is enabled for this setup; email delivery and external authentication
+services are disabled. Accounts, notes, and session secrets stay under
+`../.local/dual-account/` across restarts. It uses the cached MongoDB 8.0.16 binary
+from the backend test dependency and reports an error if it is unavailable.
+Press Ctrl+C in the runner terminal to stop its processes.
+
 ## Checks
 
 ```powershell
@@ -61,13 +106,24 @@ See the backend repository's deployment runbooks for coordinated releases.
 
 ## Reviewed package integration
 
-The release candidate pins calculator 1.1.0-rc.1, document-editor 1.1.0-rc.1 and Noteboard 3.0.0-rc.1. See `RELEASE.txt` for coordinated migration and release gates.
+The local package snapshot pins calculator 1.1.0-rc.2, document-editor 1.1.0-rc.5 and Noteboard 3.0.0-rc.2. See `RELEASE.txt` for coordinated migration and release gates.
 
 The three editors/calculator packages are pinned to tarballs in `vendor/` so
 `npm ci` installs the reviewed code without an unpublished registry version.
-Sources: calculator `f4488ef`, document-editor `d4d6dc1`, Noteboard `03593d5`.
+The archives contain the local package updates from October 19, 2026. Their
+checksums are recorded in `vendor/README.md` and the dependency lockfile.
 Keep these artifacts checked in until a coordinated npm release replaces them.
 The host uses DocumentEditor and each Yjs binding's local undo history directly.
+
+Settings controls the app and all three packages through one appearance preference.
+Choose automatic, light, or dark mode, then Default, Ocean, Forest, Plum, or custom
+primary and secondary colors. Default retains the existing accent selection.
+Scrollbars can use native styling, custom thumb and track colors, a transparent
+track, or hidden bars while scrolling stays enabled. These preferences stay on
+this device and also apply to offline editors and linked board previews.
+
+Noteboard does not restore a previous board itself. ThyncSpace retains ownership
+of private autosave, browser drafts, and live collaboration recovery.
 
 ## Organization and recovery
 
@@ -85,6 +141,8 @@ The calculator remains private to the current user. See the collaboration sectio
 Run `npm run check`, `npm test`, `npm run lint`, and `npm run build`.
 For browser checks, start `npm run dev -- --hostname 127.0.0.1 --port 3010`, then
 run `npm run test:browser`. Override `REVIEW_URL` or `CHROME_PATH` when needed.
+Run `node scripts/package-appearance-review.cjs` for saved appearance preferences
+and package scrollbar/theme integration.
 The browser suite uses controlled API fixtures; it does not authenticate against
 or mutate a real account. See REVIEW-2026-10-12.md for scope and remaining gaps.
 

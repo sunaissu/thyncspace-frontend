@@ -10,7 +10,8 @@ export default function ReminderCenter({ owner, notes, initialNoteId, open, onOp
   const [now, setNow] = useState(() => Date.now());
   const [list, setList] = useState<Api.ReminderList | null>(null), [error, setError] = useState(""), [status, setStatus] = useState(""), [busy, setBusy] = useState(false);
   const [noteId, setNoteId] = useState(initialNoteId ?? notes[0]?._id ?? ""), [taskLine, setTaskLine] = useState(""), [dueAt, setDueAt] = useState(() => localTime(new Date(Date.now() + 3600000))), [repeatDays, setRepeatDays] = useState(0), [filter, setFilter] = useState("active"), [enabled, setEnabled] = useState(false);
-  const tasks = useMemo(() => collectNoteTasks(notes).filter(task => task.noteId === noteId && !task.done), [notes, noteId]);
+  const taskSource = open ? notes.find(note => note._id === noteId) : undefined;
+  const tasks = useMemo(() => taskSource ? collectNoteTasks([taskSource]).filter(task => !task.done) : [], [taskSource]);
   const reload = async () => { const current = ++generation.current; setNow(Date.now()); try { const value = await Api.fetchReminders(); if (active.current && current === generation.current) { setList(value); setError(""); } } catch (error) { if (active.current && current === generation.current) setError(error instanceof Error ? error.message : "Could not load reminders."); } };
   useEffect(() => {
     active.current = true; let current = true, pending = false;

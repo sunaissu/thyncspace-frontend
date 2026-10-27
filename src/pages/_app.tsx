@@ -1,4 +1,5 @@
 import "@/styles/globals.css";
+import "@/styles/documentation.css";
 import "@sunaissu/document-editor/styles.css";
 import "@sunaissu/calculator/styles.css";
 import type { AppProps } from "next/app";

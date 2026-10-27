@@ -1,4 +1,7 @@
 import WikiCompletion from "./wikiCompletion";
+import DocumentationEditor from "./documentationEditor";
+import { useDocumentation } from "../hooks/useDocumentation";
+import { parseDocumentation, serializeDocumentation } from "../util/documentation";
 import { useEditorPreferences } from "../hooks/useEditorPreferences";
 import CollaborationPresence from "./collaborationPresence";
 import React, {
@@ -119,6 +122,12 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     note.type === NoteType.Document ? note.content : "",
   );
   const [initialWhiteboard] = useState(() => parseWhiteboard(note));
+  const [initialDocumentationSource] = useState(() => note.type === NoteType.Documentation ? note.content : "");
+  const [initialDocumentation] = useState(() => parseDocumentation(initialDocumentationSource));
+  const documentationBinding = useDocumentation(collaboration.document);
+  const seedDocumentation = documentationBinding.seed;
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState("");
   const documentBinding = useYjsDocument(collaboration.document, {
     initialValue: collaboration.local ? initialDocumentContent : undefined,
   });
@@ -168,9 +177,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
 
     if (initializedLocalWhiteboardRef.current !== collaboration.document) {
       initializedLocalWhiteboardRef.current = collaboration.document;
+      if (note.type === NoteType.Documentation && initialDocumentation) seedDocumentation(initialDocumentation);
 
-      // Noteboard 2.0's initialElements path reads detached Y.Map values.
-      // Updating through the binding attaches each map before it is read.
+      // Attach each map before the binding reads its initial values.
       if (
         note.type === NoteType.Whiteboard &&
         initialWhiteboard.elements.length > 0
@@ -186,6 +195,8 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     initialWhiteboard.elements,
     note.type,
     initializeWhiteboardElements,
+    initialDocumentation,
+    seedDocumentation,
   ]);
 
   const privateWhiteboardSnapshot = useMemo(() => {
@@ -216,20 +227,27 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     [initialWhiteboard],
   );
   const privateRevision =
-    note.type === NoteType.Document
+    note.type === NoteType.Documentation ? documentationBinding.value : note.type === NoteType.Document
       ? content
       : privateWhiteboardSnapshot?.revision ?? "";
   const initialPrivateRevision =
-    note.type === NoteType.Document
+    note.type === NoteType.Documentation ? (initialDocumentation ? serializeDocumentation(initialDocumentation) : "") : note.type === NoteType.Document
       ? initialDocumentContent
       : initialWhiteboardRevision;
   const privateValue =
-    note.type === NoteType.Document
+    note.type === NoteType.Documentation ? documentationBinding.value : note.type === NoteType.Document
       ? content
       : privateWhiteboardSnapshot?.value ?? "";
   const recoverPrivateDraft = useCallback(
     (draftValue: string) => {
       if (readOnly) return false;
+
+      if (note.type === NoteType.Documentation) {
+        const recovered = parseDocumentation(draftValue);
+        if (!recovered) return false;
+        documentationBinding.replace(recovered);
+        return true;
+      }
 
       if (note.type === NoteType.Document) {
         documentBinding.onChange(draftValue);
@@ -257,7 +275,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       } catch {
         return false;
       }
-    }, [documentBinding, note.type, readOnly, whiteboardBinding],
+    }, [documentBinding, documentationBinding, note.type, readOnly, whiteboardBinding],
   );
   const handlePrivateSaved = useCallback(
     (savedNote: Note) => {
@@ -272,7 +290,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     [note._id, setNotes],
   );
   const privateAutosave = usePrivateNoteAutosave({
-    enabled: collaboration.local && localBindingsReady && !readOnly,
+    enabled: collaboration.local && localBindingsReady && !readOnly && (note.type !== NoteType.Documentation || (initialDocumentation !== null && !documentationBinding.error)),
     accountId: user?._id ?? note.owner,
     initialRevision: initialPrivateRevision,
     initialServerRevision: note.contentRevision ?? 0,
@@ -341,6 +359,28 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   }, [content, editorReady, note._id, note.type, setNotes]);
 
   useEffect(() => {
+    if (!editorReady || note.type !== NoteType.Documentation || documentationBinding.error || !documentationBinding.content || (collaboration.local && !initialDocumentation)) return;
+    setNotes(previous => previous.map(existing => existing._id === note._id && existing.type === NoteType.Documentation && existing.content !== documentationBinding.value
+      ? { ...existing, content: documentationBinding.value, updatedAt: new Date().toISOString() } : existing));
+  }, [documentationBinding.value, documentationBinding.error, documentationBinding.content, collaboration.local, initialDocumentation, editorReady, note._id, note.type, setNotes]);
+
+  const exportDocumentation = async (format: "docx" | "pdf") => {
+    if (exporting || !documentationBinding.content) return;
+    setExporting(true); setExportError("");
+    try {
+      const snapshot = structuredClone(documentationBinding.content);
+      const { exportDocumentation } = await import("../util/documentationExport");
+      const blob = await exportDocumentation(snapshot, note.title, format);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = `${note.title.replace(/[<>:"/\\|?*\x00-\x1f]/g, "-").slice(0, 100) || "Documentation"}.${format}`;
+      anchor.click(); window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "The export could not be created. Your document is unchanged.");
+    } finally { setExporting(false); }
+  };
+
+  useEffect(() => {
     if (collaboration.local) return;
     if (collaboration.durability === "error") onSaveStatusChange?.("error");
     else if (collaboration.unsyncedChanges > 0) onSaveStatusChange?.("saving");
@@ -401,7 +441,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
   ]);
 
   const admissionNotice = admissionError ? <div className="editor-save-alert" role="alert">{admissionError}<button type="button" className="btn-ghost" onClick={() => setAdmissionError("")}>Dismiss</button></div> : null;
-  const storageNotice = !collaboration.local && (collaboration.durability === "error" || collaboration.draftError) ? <div className="editor-save-alert" role="alert"><span>{collaboration.draftError || "Live changes have not been stored. Keep this page open or download a copy."}</span><button type="button" className="btn-ghost" onClick={() => downloadDraft(note.type === NoteType.Document ? content : JSON.stringify({ elements: whiteboardElements, viewport: whiteboardBinding.viewport }), "unsaved-live-note.txt")}>Download draft</button></div> : null;
+  const storageNotice = !collaboration.local && (collaboration.durability === "error" || collaboration.draftError) ? <div className="editor-save-alert" role="alert"><span>{collaboration.draftError || "Live changes have not been stored. Keep this page open or download a copy."}</span><button type="button" className="btn-ghost" onClick={() => downloadDraft(note.type === NoteType.Documentation ? documentationBinding.value : note.type === NoteType.Document ? content : JSON.stringify({ elements: whiteboardElements, viewport: whiteboardBinding.viewport }), "unsaved-live-note.txt")}>Download draft</button></div> : null;
   const connectionNotice = !collaboration.local && collaboration.ready && collaboration.status !== "synced" ? (
     <div className="editor-save-alert" role="alert"><CloudSlashIcon size={18} /><span><strong>Connection interrupted. Editing is paused.</strong><small>{collaboration.errorMessage || "Your current work remains here while the connection recovers."}</small></span><button type="button" className="btn-ghost" onClick={collaboration.retry}>Reconnect</button></div>
   ) : null;
@@ -420,7 +460,7 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
       <button type="button" className="btn-ghost" onClick={privateAutosave.retry}>
         Try saving again
       </button>
-      <button type="button" className="btn-ghost" onClick={() => downloadDraft(privateValue, note.type === NoteType.Document ? "unsaved-note.md" : "unsaved-board.json")}>
+      <button type="button" className="btn-ghost" onClick={() => downloadDraft(privateValue, note.type === NoteType.Documentation ? "unsaved-documentation.json" : note.type === NoteType.Document ? "unsaved-note.md" : "unsaved-board.json")}>
         Download draft
       </button>
     </div>
@@ -446,6 +486,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
     </div>
   ) : null;
 
+  if (note.type === NoteType.Documentation && (documentationBinding.error || (collaboration.local && !initialDocumentation))) {
+    return <div className="editor-save-alert" role="alert"><p>{documentationBinding.error || "This documentation could not be opened. Its original contents have been preserved."}</p><button className="btn-ghost" type="button" onClick={() => downloadDraft(initialDocumentationSource, "documentation-original.json")}>Download original</button></div>;
+  }
   const privateDraftLoading = collaboration.local && !privateAutosave.ready;
   if (!collaboration.ready || privateDraftLoading) {
     const hasError = collaboration.status === "error";
@@ -511,9 +554,9 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
               <label>Browser draft<textarea aria-label="Browser draft" readOnly value={privateAutosave.conflictValue} /></label>
               <label>Server copy<textarea aria-label="Server copy" readOnly value={privateAutosave.conflictServer
                 ? typeof privateAutosave.conflictServer.content === "string" ? privateAutosave.conflictServer.content : JSON.stringify(privateAutosave.conflictServer.content, null, 2)
-                : note.type === NoteType.Document ? initialDocumentContent : JSON.stringify(initialWhiteboard, null, 2)} /></label>
+                : note.type === NoteType.Documentation ? initialPrivateRevision : note.type === NoteType.Document ? initialDocumentContent : JSON.stringify(initialWhiteboard, null, 2)} /></label>
             </div>
-            <button type="button" className="btn-ghost" onClick={() => downloadDraft(JSON.stringify({ browser: privateAutosave.conflictValue, server: privateAutosave.conflictServer?.content ?? (note.type === NoteType.Document ? initialDocumentContent : initialWhiteboard) }, null, 2), "note-conflict-copies.json")}>
+            <button type="button" className="btn-ghost" onClick={() => downloadDraft(JSON.stringify({ browser: privateAutosave.conflictValue, server: privateAutosave.conflictServer?.content ?? (note.type === NoteType.Documentation ? initialDocumentation : note.type === NoteType.Document ? initialDocumentContent : initialWhiteboard) }, null, 2), "note-conflict-copies.json")}>
               Download both copies
             </button>
           </div>
@@ -536,6 +579,14 @@ const ActiveNoteEditor: React.FC<ActiveNoteEditorProps> = ({
         </div>
       </div>
     );
+  }
+
+  if (note.type === NoteType.Documentation) {
+    return <div className="documentation-workspace">
+      {admissionNotice}{storageNotice}{connectionNotice}{privateSaveNotice}
+      <div className="documentation-session-bar" role="status">{collaboration.local ? "Private documentation" : `${collaboration.peers.length || 1} connected · ${collaboration.status}`}{readOnly && " · Read only"}</div>
+      <DocumentationEditor document={collaboration.document} title={note.title} readOnly={Boolean(readOnly)} onExport={exportDocumentation} exporting={exporting} exportError={exportError} />
+    </div>;
   }
 
   if (note.type === NoteType.Whiteboard) {

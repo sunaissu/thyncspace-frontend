@@ -4,7 +4,7 @@ export interface EditorPreferences {
   mode: "visual" | "markdown" | "split" | "preview";
   fontSize: number;
   lineWidth: "full" | "reading";
-  noteType: "document" | "whiteboard";
+  noteType: "document" | "whiteboard" | "documentation";
 }
 const defaults: EditorPreferences = { mode: "visual", fontSize: 16, lineWidth: "full", noteType: "document" };
 export function normalizeEditorPreferences(value: unknown): EditorPreferences {
@@ -13,7 +13,7 @@ export function normalizeEditorPreferences(value: unknown): EditorPreferences {
     mode: ["visual", "markdown", "split", "preview"].includes(input.mode ?? "") ? input.mode! : defaults.mode,
     fontSize: Number.isInteger(input.fontSize) && input.fontSize! >= 12 && input.fontSize! <= 28 ? input.fontSize! : defaults.fontSize,
     lineWidth: input.lineWidth === "reading" ? "reading" : "full",
-    noteType: input.noteType === "whiteboard" ? "whiteboard" : "document",
+    noteType: input.noteType === "whiteboard" || input.noteType === "documentation" ? input.noteType : "document",
   };
 }
 export function useEditorPreferences(userId?: string) {

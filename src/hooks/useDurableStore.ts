@@ -17,7 +17,9 @@ export function useDurableStore(document: Y.Doc, type: string) {
       setDurability("pending");
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        const bytes = new TextEncoder().encode(collaborationSnapshot(document, type));
+        let bytes: Uint8Array<ArrayBuffer>;
+        try { bytes = new TextEncoder().encode(collaborationSnapshot(document, type)); }
+        catch { if (active && current === generation.current) setDurability("error"); return; }
         void globalThis.crypto.subtle.digest("SHA-256", bytes).then(hash => {
           if (!active || current !== generation.current) return;
           fingerprint.current = Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, "0")).join("");

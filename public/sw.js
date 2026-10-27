@@ -1,5 +1,5 @@
 const CACHE_PREFIX = "thyncspace-pwa";
-const CACHE_VERSION = "v6";
+const CACHE_VERSION = "v8";
 const STATIC_CACHE = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 const PRECACHE_URLS = [
   "/offline.html",

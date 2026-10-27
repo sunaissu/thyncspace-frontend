@@ -1,4 +1,5 @@
 import React from "react";
+import { noteSearchSnippet } from "../util/noteSearch";
 import {
   Note as NoteModel,
   NoteType,
@@ -79,7 +80,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
         </div>
 
         {/* Preview */}
-        {note.type === NoteType.Document && (
+        {note.type !== NoteType.Whiteboard && (
           <div
             style={
               {
@@ -96,7 +97,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
               } as React.CSSProperties
             }
           >
-            {(note as DocumentNote).content || "Empty document..."}
+            {note.type === NoteType.Documentation ? noteSearchSnippet(note, "") || "Text and boards in one page" : (note as DocumentNote).content || "Empty document..."}
           </div>
         )}
 
@@ -186,7 +187,7 @@ const NoteCard: React.FC<NoteCardProps> = ({
               border: "1px solid var(--color-border)",
             }}
           >
-            {note.type === NoteType.Document ? "Doc" : "Board"}
+            {note.type === NoteType.Documentation ? "Documentation" : note.type === NoteType.Document ? "Doc" : "Board"}
           </span>
         </div>
       </button>

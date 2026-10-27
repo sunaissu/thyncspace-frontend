@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import DocumentationPreview from "./documentationPreview";
 import { MarkdownRenderer } from "@sunaissu/document-editor";
 import { NoteboardPreview } from "@sunaissu/noteboard";
 import { NoteType, sanitizeNoteboardElements, type Note } from "../model/note";
@@ -29,7 +30,7 @@ export default function VersionComparison({ saved, note }: { saved: string; note
     } catch { return null; }
   }, [saved, current, note.type]);
   return <>
-    {note.type === NoteType.Whiteboard ? boards ? <>
+    {note.type === NoteType.Documentation ? <div className="draft-comparison"><section aria-label="Saved documentation"><h3>Saved documentation</h3><DocumentationPreview value={saved} /></section><section aria-label="Current documentation"><h3>Current documentation</h3><DocumentationPreview value={current} /></section></div> : note.type === NoteType.Whiteboard ? boards ? <>
       <p>{boards.added} objects added · {boards.removed} removed · {boards.changed} changed</p>
       <div className="draft-comparison"><figure><figcaption>Saved board</figcaption><NoteboardPreview elements={boards.before} height={280} /></figure><figure><figcaption>Current board</figcaption><NoteboardPreview elements={boards.after} height={280} /></figure></div>
     </> : <p role="alert">The saved board could not be previewed. Its original data is available below.</p> : <>

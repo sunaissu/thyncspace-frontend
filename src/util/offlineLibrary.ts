@@ -1,7 +1,7 @@
 import type { Note } from "../model/note";
 
 export interface OfflineNote {
-  account: string; username: string; noteId: string; title: string; type: "document" | "whiteboard";
+  account: string; username: string; noteId: string; title: string; type: "document" | "whiteboard" | "documentation";
   baseContent: string; baseRevision: number; pending: string | null; editable: boolean;
   revision: number; cachedAt: string; changedAt: string; error?: string;
 }
@@ -20,7 +20,7 @@ function open(): Promise<IDBDatabase> {
 function valid(value: unknown): value is OfflineNote {
   if (!value || typeof value !== "object") return false;
   const note = value as OfflineNote;
-  return /^[a-f0-9]{24}$/i.test(note.account) && /^[a-f0-9]{24}$/i.test(note.noteId) && typeof note.username === "string" && typeof note.title === "string" && ["document", "whiteboard"].includes(note.type) && typeof note.baseContent === "string" && (note.pending === null || typeof note.pending === "string") && Number.isSafeInteger(note.baseRevision) && note.baseRevision >= 0 && Number.isSafeInteger(note.revision) && note.revision >= 0 && typeof note.editable === "boolean" && typeof note.cachedAt === "string" && typeof note.changedAt === "string" && (note.error === undefined || typeof note.error === "string");
+  return /^[a-f0-9]{24}$/i.test(note.account) && /^[a-f0-9]{24}$/i.test(note.noteId) && typeof note.username === "string" && typeof note.title === "string" && ["document", "whiteboard", "documentation"].includes(note.type) && typeof note.baseContent === "string" && (note.pending === null || typeof note.pending === "string") && Number.isSafeInteger(note.baseRevision) && note.baseRevision >= 0 && Number.isSafeInteger(note.revision) && note.revision >= 0 && typeof note.editable === "boolean" && typeof note.cachedAt === "string" && typeof note.changedAt === "string" && (note.error === undefined || typeof note.error === "string");
 }
 export async function listOfflineNotes(account?: string): Promise<OfflineNote[]> {
   const database = await open();

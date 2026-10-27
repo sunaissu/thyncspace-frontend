@@ -10,6 +10,7 @@ export type PermissionLevel = "viewer" | "editor";
 export enum NoteType {
   Document = "document",
   Whiteboard = "whiteboard",
+  Documentation = "documentation",
 }
 
 export interface Collaborator {
@@ -58,7 +59,12 @@ export interface WhiteboardNote extends BaseNote {
   content: WhiteboardContent | string;
 }
 
-export type Note = DocumentNote | WhiteboardNote;
+export interface DocumentationNote extends BaseNote {
+  type: NoteType.Documentation;
+  content: string;
+}
+
+export type Note = DocumentNote | WhiteboardNote | DocumentationNote;
 
 const NOTEBOARD_ELEMENT_TYPES = new Set<NoteboardElement["type"]>([
   "rectangle",
@@ -531,6 +537,20 @@ export function noteMatchesSearch(note: Note, search: string): boolean {
     const content = note.content || "";
     if (typeof content === "string" && content.toLowerCase().includes(term))
       return true;
+  } else if (note.type === NoteType.Documentation) {
+    try {
+      const value: unknown = JSON.parse(note.content);
+      if (isRecord(value) && Array.isArray(value.sections)) {
+        return value.sections.some(section => {
+          if (!isRecord(section)) return false;
+          const labels = [section.title, section.caption, section.type === "text" ? section.content : ""];
+          if (Array.isArray(section.elements)) for (const element of section.elements) {
+            if (isRecord(element) && !element.isDeleted) labels.push(element.text, element.label, element.name);
+          }
+          return labels.some(label => typeof label === "string" && label.toLowerCase().includes(term));
+        });
+      }
+    } catch { /* Invalid content is shown in the editor with recovery controls. */ }
   } else if (note.type === NoteType.Whiteboard) {
     let elements: NoteboardElement[] = [];
     if (note.content) {

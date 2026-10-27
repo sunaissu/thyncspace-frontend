@@ -1,5 +1,6 @@
 import type { Note } from "../model/note";
-export interface SearchFilters { owner: "all" | "mine" | "shared"; type: "all" | "document" | "whiteboard"; tag: string; from: string; to: string }
+import { documentationPlainText, parseDocumentation } from "./documentation";
+export interface SearchFilters { owner: "all" | "mine" | "shared"; type: "all" | "document" | "whiteboard" | "documentation"; tag: string; from: string; to: string }
 export const emptySearchFilters: SearchFilters = { owner: "all", type: "all", tag: "", from: "", to: "" };
 export function matchesFilters(note: Note, filters: SearchFilters, userId?: string) {
   if (filters.owner === "mine" && note.owner !== userId) return false;
@@ -12,6 +13,7 @@ export function matchesFilters(note: Note, filters: SearchFilters, userId?: stri
 export function noteSearchSnippet(note: Note, query: string) {
   let value = "";
   if (note.type === "document") value = note.content;
+  else if (note.type === "documentation") { const content = parseDocumentation(note.content); if (content) value = documentationPlainText(content); }
   else {
     try {
       const board = typeof note.content === "string" ? JSON.parse(note.content) : note.content;

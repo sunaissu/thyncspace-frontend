@@ -376,7 +376,7 @@ const Settings: React.FC<SettingsProps> = ({ loggedInUser, onUserUpdate }) => {
             <label>Preferred editor mode<select value={editor.preferences.mode} onChange={event => editor.update({ mode: event.target.value as typeof editor.preferences.mode })}><option value="visual">Visual</option><option value="markdown">Markdown</option><option value="split">Split</option><option value="preview">Preview</option></select></label>
             <label>Editor font size<input type="number" min={12} max={28} value={editor.preferences.fontSize} onChange={event => editor.update({ fontSize: Number(event.target.value) })} /></label>
             <label>Line width<select value={editor.preferences.lineWidth} onChange={event => editor.update({ lineWidth: event.target.value as "full" | "reading" })}><option value="full">Full width</option><option value="reading">Reading width</option></select></label>
-            <label>Default new note type<select value={editor.preferences.noteType} onChange={event => editor.update({ noteType: event.target.value as "document" | "whiteboard" })}><option value="document">Document</option><option value="whiteboard">Whiteboard</option></select></label>
+            <label>Default new note type<select value={editor.preferences.noteType} onChange={event => editor.update({ noteType: event.target.value as "document" | "whiteboard" | "documentation" })}><option value="document">Document</option><option value="whiteboard">Whiteboard</option><option value="documentation">Documentation</option></select></label>
           </div>
           {editor.error && <p role="alert">{editor.error}</p>}
         </section>
