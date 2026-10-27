@@ -4542,11 +4542,6 @@ html[data-theme="light"] .modal-backdrop {
 .library-row button { flex-shrink: 0; }
 .notebook-filter { display: grid; gap: 4px; font-size: 12px; margin-bottom: 10px; }
 
-.saved-calculation { display: grid; gap: 10px; margin: 14px 0; padding-bottom: 16px; border-bottom: 1px solid var(--color-border); }
-.saved-calculation label { display: grid; gap: 5px; font-size: 12px; }
-.saved-calculation input, .saved-calculation textarea { width: 100%; padding: 8px; border-radius: 6px; background: var(--color-surface); color: inherit; border: 1px solid var(--color-border); }
-.saved-calculation p { overflow-wrap: anywhere; font-size: 13px; }
-
 .draft-comparison { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 16px; margin: 16px 0; }
 .draft-comparison label { display: grid; gap: 8px; min-width: 0; }
 .draft-comparison textarea { width: 100%; min-height: 180px; resize: vertical; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; }
